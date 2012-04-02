@@ -1,0 +1,35 @@
+#load DaoMySQL.DaoMySQL;
+load DaoSQLite.DaoSQLite;
+
+# class that can be mapped to a database table
+class Gene
+{
+	var id   : INT_PRIMARY_KEY_AUTO_INCREMENT;
+	var name : VARCHAR100;
+	var seq  : TEXT;
+}
+# connect database
+#db = SQLDatabase<MySQL>( 'dbname', 'host', 'user', 'pwd' );
+db = SQLDatabase<SQLite>( 'Test_Gene.db' );
+
+# create a table for class Gene
+try{
+	db.CreateTable( Gene );
+}catch{
+}
+
+gene = Gene{ 0, 'RAS', '...AATCCGG...' };
+gene2 = Gene{ 0, 'RAS2', '...AATCCGCCC...' };
+# insert a record into the table
+db.Insert( { gene, gene2 } );
+
+# SELECT * FROM Gene WHERE name = 'RASE';
+h = db.Select( Gene ).Where().EQ( 'name', 'RAS2' );
+io.writeln( std.about(h) )
+
+io.writeln( gene.id, gene.name, gene.seq );
+# query and store the result into 'gene' object:
+while( h.Query( gene ) ){
+	io.writeln( gene.id, gene.name, gene.seq );
+#	break;
+}
