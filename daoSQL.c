@@ -150,22 +150,22 @@ static DaoFuncItem handlerMeths[]=
 {
 	{ DaoSQLHandle_SQLString, "sqlstring( self :@SQLHandle )=>string" },
 	{ DaoSQLHandle_Where,  "Where( self :@SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_Set, "Set( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_Add, "Add( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_Set,"Set( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_Add,"Add( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
-	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, table :class, field :string, value=any )=>@SQLHandle" },
+	{ DaoSQLHandle_Set, "Set( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_Add, "Add( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_Set,"Set( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_Add,"Add( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
 	{ DaoSQLHandle_IN, "In( self :@SQLHandle, field :string, values={} )=>@SQLHandle" },
 	{ DaoSQLHandle_IN, "In( self :@SQLHandle, table :class, field :string, values={} )=>@SQLHandle" },
 	{ DaoSQLHandle_OR,"Or( self :@SQLHandle )=>@SQLHandle" },
@@ -654,112 +654,30 @@ static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N )
 int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
-	DaoType *tp;
-	tp = DaoNamespace_MakeType( ns, "int", DAO_INTEGER, 0,0,0 );
 
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "INT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-	/*
-	*/
 	DaoNamespace_TypeDefine( ns, "int", "INT" );
-
-/*
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "BIT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-	*/
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "TINYINT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "SMALLINT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "MEDIUMINT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "INT_PRIMARY_KEY" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "INT_PRIMARY_KEY_AUTO_INCREMENT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoNamespace_MakeType( ns, "double", DAO_DOUBLE, 0,0,0 );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "BIGINT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoNamespace_MakeType( ns, "string", DAO_STRING, 0,0,0 );
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "TEXT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "MEDIUMTEXT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "LONGTEXT" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "BLOB" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "MEDIUMBLOB" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "LONGBLOB" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "CHAR10" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "CHAR20" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "CHAR50" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "CHAR100" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "CHAR200" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "VARCHAR10" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "VARCHAR20" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "VARCHAR50" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "VARCHAR100" );
-	DaoNamespace_AddType( ns, tp->name, tp );
-
-	tp = DaoType_Copy( tp );
-	DString_SetMBS( tp->name, "VARCHAR200" );
-	DaoNamespace_AddType( ns, tp->name, tp );
+	DaoNamespace_TypeDefine( ns, "int", "TINYINT" );
+	DaoNamespace_TypeDefine( ns, "int", "SMALLINT" );
+	DaoNamespace_TypeDefine( ns, "int", "MEDIUMINT" );
+	DaoNamespace_TypeDefine( ns, "int", "INT_PRIMARY_KEY" );
+	DaoNamespace_TypeDefine( ns, "int", "INT_PRIMARY_KEY_AUTO_INCREMENT" );
+	DaoNamespace_TypeDefine( ns, "double", "BIGINT" );
+	DaoNamespace_TypeDefine( ns, "string", "TEXT" );
+	DaoNamespace_TypeDefine( ns, "string", "MEDIUMTEXT" );
+	DaoNamespace_TypeDefine( ns, "string", "LONGTEXT" );
+	DaoNamespace_TypeDefine( ns, "string", "BLOB" );
+	DaoNamespace_TypeDefine( ns, "string", "MEDIUMBLOB" );
+	DaoNamespace_TypeDefine( ns, "string", "LONGBLOB" );
+	DaoNamespace_TypeDefine( ns, "string", "CHAR10" );
+	DaoNamespace_TypeDefine( ns, "string", "CHAR20" );
+	DaoNamespace_TypeDefine( ns, "string", "CHAR50" );
+	DaoNamespace_TypeDefine( ns, "string", "CHAR100" );
+	DaoNamespace_TypeDefine( ns, "string", "CHAR200" );
+	DaoNamespace_TypeDefine( ns, "string", "VARCHAR10" );
+	DaoNamespace_TypeDefine( ns, "string", "VARCHAR20" );
+	DaoNamespace_TypeDefine( ns, "string", "VARCHAR50" );
+	DaoNamespace_TypeDefine( ns, "string", "VARCHAR100" );
+	DaoNamespace_TypeDefine( ns, "string", "VARCHAR200" );
 
 	DaoNamespace_WrapTypes( ns, typers );
 	return 0;
