@@ -1,5 +1,5 @@
 
-/* DaoDataModel:
+/* DaoMySQLDB:
  * Database handling with mapping class instances to database table records.
  * Copyright (C) 2008-2011, Limin Fu (phoolimin@gmail.com).
  */
@@ -7,15 +7,15 @@
 #include"string.h"
 #include"daoMySQL.h"
 
-DaoDataModel* DaoDataModel_New()
+DaoMySQLDB* DaoMySQLDB_New()
 {
-	DaoDataModel *self = malloc( sizeof(DaoDataModel) );
+	DaoMySQLDB *self = malloc( sizeof(DaoMySQLDB) );
 	DaoSQLDatabase_Init( (DaoSQLDatabase*) self );
 	self->mysql = mysql_init( NULL );
 	self->stmt = mysql_stmt_init( self->mysql );
 	return self;
 }
-void DaoDataModel_Delete( DaoDataModel *self )
+void DaoMySQLDB_Delete( DaoMySQLDB *self )
 {
 	DaoSQLDatabase_Clear( (DaoSQLDatabase*) self );
 	mysql_stmt_close( self->stmt );
@@ -23,38 +23,38 @@ void DaoDataModel_Delete( DaoDataModel *self )
 	free( self );
 }
 
-static void DaoDataModel_DataModel( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoDataModel_CreateTable( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoDataModel_AlterTable( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoDataModel_Insert( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoDataModel_DeleteRow( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoDataModel_Select( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoDataModel_Update( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoDataModel_Query( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_AlterTable( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_Select( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_Update( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoDataModel_DataModel,"SQLDatabase<MySQL>( name : string, host='', user='', pwd='' )=>SQLDatabase<MySQL>"},
-	{ DaoDataModel_CreateTable,  "CreateTable( self:SQLDatabase<MySQL>, klass )" },
-//	{ DaoDataModel_AlterTable,  "AlterTable( self:SQLDatabase<MySQL>, klass )" },
-	{ DaoDataModel_Insert,  "Insert( self:SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>" },
-	{ DaoDataModel_DeleteRow, "Delete( self:SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>"},
-	{ DaoDataModel_Select, "Select( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
-	{ DaoDataModel_Update, "Update( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
-	{ DaoDataModel_Query,  "Query( self:SQLDatabase<MySQL>, sql : string ) => int" },
+	{ DaoMySQLDB_DataModel,"SQLDatabase<MySQL>( name : string, host='', user='', pwd='' )=>SQLDatabase<MySQL>"},
+	{ DaoMySQLDB_CreateTable,  "CreateTable( self:SQLDatabase<MySQL>, klass )" },
+//	{ DaoMySQLDB_AlterTable,  "AlterTable( self:SQLDatabase<MySQL>, klass )" },
+	{ DaoMySQLDB_Insert,  "Insert( self:SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>" },
+	{ DaoMySQLDB_DeleteRow, "Delete( self:SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>"},
+	{ DaoMySQLDB_Select, "Select( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
+	{ DaoMySQLDB_Update, "Update( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
+	{ DaoMySQLDB_Query,  "Query( self:SQLDatabase<MySQL>, sql : string ) => int" },
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoDataModel_Typer = 
+static DaoTypeBase DaoMySQLDB_Typer = 
 { "SQLDatabase<MySQL>", NULL, NULL, modelMeths, 
 	{ & DaoSQLDatabase_Typer, 0 }, {0}, 
-	(FuncPtrDel) DaoDataModel_Delete, NULL };
+	(FuncPtrDel) DaoMySQLDB_Delete, NULL };
 
-static DaoType *dao_type_mysql_datamodel = NULL;
+static DaoType *dao_type_mysql_database = NULL;
 
-DaoHandle* DaoHandle_New( DaoDataModel *model )
+DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 {
-	DaoHandle *self = malloc( sizeof(DaoHandle) );
+	DaoMySQLHD *self = malloc( sizeof(DaoMySQLHD) );
 	int i;
 	DaoSQLHandle_Init( (DaoSQLHandle*) self );
 	self->model = model;
@@ -70,7 +70,7 @@ DaoHandle* DaoHandle_New( DaoDataModel *model )
 	self->resbind[0].length = & self->base.reslen;
 	return self;
 }
-void DaoHandle_Delete( DaoHandle *self )
+void DaoMySQLHD_Delete( DaoMySQLHD *self )
 {
 	int i;
 	/* it appears to close all other stmt associated with the connection too! */
@@ -85,32 +85,32 @@ void DaoHandle_Delete( DaoHandle *self )
 	DArray_Delete( self->base.countList );
 	free( self );
 }
-static void DaoHandle_Insert( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoHandle_Bind( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoHandle_Query( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoHandle_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoHandle_Done( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLHD_Done( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoHandle_Insert, "Insert( self:SQLHandle<MySQL>, object ) => int" },
-	{ DaoHandle_Bind, "Bind( self:SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
-	{ DaoHandle_Query, "Query( self:SQLHandle<MySQL>, ... ) => int" },
-	{ DaoHandle_QueryOnce, "QueryOnce( self:SQLHandle<MySQL>, ... ) => int" },
-	{ DaoHandle_Done,  "Done( self:SQLHandle<MySQL> )" },
+	{ DaoMySQLHD_Insert, "Insert( self:SQLHandle<MySQL>, object ) => int" },
+	{ DaoMySQLHD_Bind, "Bind( self:SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
+	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) => int" },
+	{ DaoMySQLHD_QueryOnce, "QueryOnce( self:SQLHandle<MySQL>, ... ) => int" },
+	{ DaoMySQLHD_Done,  "Done( self:SQLHandle<MySQL> )" },
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoHandle_Typer = 
+static DaoTypeBase DaoMySQLHD_Typer = 
 { "SQLHandle<MySQL>", NULL, NULL, handleMeths, 
 	{ & DaoSQLHandle_Typer, 0 }, {0},
-	(FuncPtrDel) DaoHandle_Delete, NULL };
+	(FuncPtrDel) DaoMySQLHD_Delete, NULL };
 
 static DaoType *dao_type_mysql_handle = NULL;
 
-static void DaoDataModel_DataModel( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoDataModel *model = DaoDataModel_New();
+	DaoMySQLDB *model = DaoMySQLDB_New();
 	DString_Assign( model->base.name, p[0]->xString.data );
 	if( N >1 ) DString_Assign( model->base.host, p[1]->xString.data );
 	if( N >2 ) DString_Assign( model->base.user, p[2]->xString.data );
@@ -119,7 +119,7 @@ static void DaoDataModel_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 	DString_ToMBS( model->base.host );
 	DString_ToMBS( model->base.user );
 	DString_ToMBS( model->base.password );
-	DaoProcess_PutCdata( proc, model, dao_type_mysql_datamodel );
+	DaoProcess_PutCdata( proc, model, dao_type_mysql_database );
 	if( mysql_real_connect( model->mysql, model->base.host->mbs, 
 				model->base.user->mbs, model->base.password->mbs, 
 				NULL, 0, NULL, 0 ) ==NULL ){
@@ -135,9 +135,9 @@ static void DaoDataModel_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 			DaoProcess_RaiseException( proc, DAO_ERROR, mysql_error( model->mysql ) );
 	}
 }
-static void DaoDataModel_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoDataModel *model = (DaoDataModel*) p[0]->xCdata.data;
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DaoClass *klass = (DaoClass*) p[1];
 	DaoType **types;
 	DString **names;
@@ -154,9 +154,9 @@ static void DaoDataModel_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 	DString_Delete( sql );
 	mysql_stmt_close( stmt );
 }
-static void DaoDataModel_Query( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoDataModel *model = (DaoDataModel*) p[0]->xCdata.data;
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DString *sql = p[1]->xString.data;
 	DString_ToMBS( sql );
 	if( mysql_query( model->mysql, sql->mbs ) ){
@@ -166,7 +166,7 @@ static void DaoDataModel_Query( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	DaoProcess_PutInteger( proc, 1 );
 }
-static void DaoDataModel_InsertObject( DaoProcess *proc, DaoHandle *handle, DaoObject *object )
+static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoObject *object )
 {
 	DaoClass  *klass = object->defClass;
 	DaoType **types = klass->objDataType->items.pType;
@@ -218,10 +218,10 @@ static void DaoDataModel_InsertObject( DaoProcess *proc, DaoHandle *handle, DaoO
 	//printf( "k = %i %i\n", k, mysql_insert_id( handle->model->mysql ) );
 	if( k >=0 ) object->objValues[k]->xInteger.value = mysql_insert_id( handle->model->mysql );
 }
-static void DaoDataModel_Insert( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoDataModel *model = (DaoDataModel*) p[0]->xCdata.data;
-	DaoHandle *handle = DaoHandle_New( model );
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = DaoMySQLHD_New( model );
 	DaoObject *object = (DaoObject*) p[1];
 	DString *str = handle->base.sqlSource;
 	DString *tabname = NULL;
@@ -235,45 +235,45 @@ static void DaoDataModel_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	if( p[1]->type == DAO_LIST ){
 		for( i=0; i<p[1]->xList.items.size; i++ )
-			DaoDataModel_InsertObject( proc, handle, p[1]->xList.items.items.pObject[i] );
+			DaoMySQLDB_InsertObject( proc, handle, p[1]->xList.items.items.pObject[i] );
 	}else{
-		DaoDataModel_InsertObject( proc, handle, object );
+		DaoMySQLDB_InsertObject( proc, handle, object );
 	}
 }
-static void DaoDataModel_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoDataModel *model = (DaoDataModel*) p[0]->xCdata.data;
-	DaoHandle *handle = DaoHandle_New( model );
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = DaoMySQLHD_New( model );
 	int i;
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareDelete( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 }
-static void DaoDataModel_Select( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLDB_Select( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoDataModel *model = (DaoDataModel*) p[0]->xCdata.data;
-	DaoHandle *handle = DaoHandle_New( model );
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = DaoMySQLHD_New( model );
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareSelect( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//printf( "%s\n", handle->base.sqlSource->mbs );
 }
-static void DaoDataModel_Update( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoDataModel *model = (DaoDataModel*) p[0]->xCdata.data;
-	DaoHandle *handle = DaoHandle_New( model );
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = DaoMySQLHD_New( model );
 	DaoClass *klass;
 	DString *tabname = NULL;
 	int i, j;
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareUpdate( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 }
-static void DaoHandle_Insert( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoHandle *handle = (DaoHandle*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
 	DaoValue *value;
 	int i;
 	DaoProcess_PutValue( proc, p[0] );
 	if( p[1]->type == DAO_OBJECT ){
-		DaoDataModel_InsertObject( proc, handle, (DaoObject*) p[1] );
+		DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[1] );
 	}else if( p[1]->type == DAO_LIST ){
 		for(i=0; i<p[1]->xList.items.size; i++){
 			value = p[1]->xList.items.items.pValue[i];
@@ -282,13 +282,13 @@ static void DaoHandle_Insert( DaoProcess *proc, DaoValue *p[], int N )
 				DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 				return;
 			}
-			DaoDataModel_InsertObject( proc, handle, (DaoObject*) value );
+			DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) value );
 		}
 	}
 }
-static void DaoHandle_Bind( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoHandle *handle = (DaoHandle*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
 	DaoValue *value = p[1];
 	int index = p[2]->xInteger.value;
 	DaoProcess_PutValue( proc, p[0] );
@@ -329,9 +329,9 @@ static void DaoHandle_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	}
 }
 //#define USE_RES
-static void DaoHandle_Query( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoHandle *handle = (DaoHandle*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
 	DaoObject *object;
 	DaoClass  *klass;
 	DaoType *type;
@@ -476,15 +476,15 @@ RaiseException2 :
 	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
 	*res = 0;
 }
-static void DaoHandle_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoHandle *handle = (DaoHandle*) p[0]->xCdata.data;
-	DaoHandle_Query( proc, p, N );
+	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
+	DaoMySQLHD_Query( proc, p, N );
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
-static void DaoHandle_Done( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoMySQLHD_Done( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoHandle *handle = (DaoHandle*) p[0]->xCdata.data;
+	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
 
@@ -492,7 +492,7 @@ int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	DaoVmSpace_LinkModule( vms, ns, "DaoSQL" );
 	DaoNamespace_TypeDefine( ns, "int", "MySQL" );
-	dao_type_mysql_datamodel = DaoNamespace_WrapType( ns, & DaoDataModel_Typer, 1 );
-	dao_type_mysql_handle = DaoNamespace_WrapType( ns, & DaoHandle_Typer, 1 );
+	dao_type_mysql_database = DaoNamespace_WrapType( ns, & DaoMySQLDB_Typer, 1 );
+	dao_type_mysql_handle = DaoNamespace_WrapType( ns, & DaoMySQLHD_Typer, 1 );
 	return 0;
 }

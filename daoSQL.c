@@ -653,6 +653,7 @@ static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N )
 
 int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
+	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
 
 	DaoNamespace_TypeDefine( ns, "int", "INT" );
@@ -680,5 +681,11 @@ int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace_TypeDefine( ns, "string", "VARCHAR200" );
 
 	DaoNamespace_WrapTypes( ns, typers );
+
+	if( lang ){
+		char fname[100] = "help_module_official_sql_";
+		strcat( fname, lang );
+		DaoVmSpace_Load( vms, fname );
+	}
 	return 0;
 }

@@ -8,7 +8,7 @@ LFLAG =
 INCLUDE += -I/Users/fulimin/Downloads/mysql-connector-c-6.0.2-osx10.5-x86-64bit/include
 #LIB += -L/Users/fulimin/Downloads/mysql-connector-c-6.0.2-osx10.5-x86-64bit/lib
 
-TARGET = DaoMySQL.so
+TARGET = ../DaoMySQL.so
 
 UNAME = $(shell uname)
 
@@ -20,7 +20,7 @@ ifeq ($(UNAME), Linux)
 endif
 
 ifeq ($(UNAME), Darwin)
-  TARGET	= DaoMySQL.dylib
+  TARGET	= ../DaoMySQL.dylib
   INCLUDE += -I/usr/local/mysql/include
   CFLAG += -DUNIX -DMAC_OSX
   LFLAG += -fPIC -dynamiclib -undefined dynamic_lookup -install_name libDaoMySQL.dylib

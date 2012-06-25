@@ -1,0 +1,277 @@
+load help;
+
+io.writeln( 'loaded' );
+
+@[name]
+module.official.sql
+@[name]
+
+@[title]
+SQL Module
+@[title]
+
+@[text]
+
+The @[green]SQL@[green] is a module to map Dao classes to database tables.
+With such mapping, the handling of database with Dao becomes very simple.
+
+
+Currently database backends are supported for SQLite and MySQL.
+To use the SQLite backend,
+@[code]
+load DaoSQLite;
+@[code]
+and to use the MySQL,
+@[code]
+load DaoMySQL;
+@[code]
+
+
+To support such mapping, the class must contain fields with explicit types
+that are defined by the @[green]SQL@[green] module,
+@[code]
+load DaoSQLite;
+
+# class that can be mapped to a database table
+class Gene
+{
+	var id   : INT_PRIMARY_KEY_AUTO_INCREMENT;
+	var name : VARCHAR100;
+	var seq  : TEXT;
+}
+@[code]
+Here, the type @[green]INT_PRIMARY_KEY_AUTO_INCREMENT,VARCHAR100,TEXT@[green]
+are defined by the @[green]SQL@[green] module, to allow the module
+interprete properly the class fields and corresponding database record fields.
+Those types provided by @[green]SQL@[green] are defined as aliases of 
+the built-in data types,
+@[list]
+--@[green]int@[green] type as integer fields:
+@[code]
+INT
+TINYINT
+SMALLINT
+MEDIUMINT
+INT_PRIMARY_KEY
+INT_PRIMARY_KEY_AUTO_INCREMENT
+@[code]
+--@[green]string@[green] type as character fields:
+@[code]
+CHAR10
+CHAR20
+CHAR50
+CHAR100
+CHAR200
+VARCHAR10
+VARCHAR20
+VARCHAR50
+VARCHAR100
+VARCHAR200
+@[code]
+--@[green]string@[green] type as text and blob fields:
+@[code]
+TEXT
+MEDIUMTEXT
+LONGTEXT
+BLOB
+MEDIUMBLOB
+LONGBLOB
+@[code]
+@[list]
+
+
+@[subsection]Connect Database@[subsection]
+
+For MySQL database, one can connect to the database by,
+@[code]
+# connect database
+database = SQLDatabase<MySQL>( 'dbname', 'host', 'user', 'password' );
+@[code]
+The prototype of @[green]SQLDatabase<MySQL>()@[green] is,
+@[code]
+SQLDatabase<MySQL>( name :string, host='', user='', pwd='' )=>SQLDatabase<MySQL>
+@[code]
+
+
+For SQLite database, one just simply need to open the database file,
+@[code]
+database = SQLDatabase<SQLite>( 'Test_Gene.db' );
+@[code]
+The prototype of @[green]SQLDatabase<SQLite>()@[green]
+@[code]
+SQLDatabase<SQLite>( name :string, host='', user='', pwd='' )=>SQLDatabase<SQLite>
+@[code]
+
+
+
+@[subsection]Create Table@[subsection]
+If the data table corresponding to class @[green]Gene@[green] does not exist yet,
+one can create it by,
+@[code]
+# create a table for class Gene
+database.CreateTable( Gene );
+@[code]
+A table named @[green]Gene@[green] will be created.
+
+
+Prototype of the method,
+@[code]
+SQLDatabase<@T<SQLite|MySQL>>.CreateTable( klass )
+@[code]
+
+If a class has a special constant string field named @[green]__TABLE_NAME__@[green],
+the name of database table corresponding to the class will be the value of 
+@[green]__TABLE_NAME__@[green].
+A class may also contain another constant string field named
+@[green]__TABLE_PROPERTY__@[green],
+which indicates the property of the table or contains extra constraints
+on some fields.
+
+
+@[subsection]Insert Record@[subsection]
+Then one can insert to the database an instance of class @[green]Gene@[green] 
+as a record by,
+@[code]
+gene = Gene{ 0, 'RAS', '...AATCCG...' };
+# insert a record into the table
+database.Insert( gene );
+@[code]
+The module knows which table to insert. After inserting, 
+if the class has a field with type @[green]INT_PRIMARY_KEY_AUTO_INCREMENT@[green],
+that instance field (in this case it is @[cyan]gene.id@[cyan]) will be filled
+with id of the inserted record.
+
+
+One can also insert multiple records at once by pass a list of class instances
+to the @[green]Insert()@[green] method.
+This method will return a database handler, with which one can insert more
+records to avoid repeatedly compile SQL statements internally.
+
+
+Similarly there is Delete(),
+@[code]
+SQLDatabase<@T<SQLite|MySQL>>.Insert( object ) => SQLHandle<@T>
+SQLDatabase<@T<SQLite|MySQL>>.Delete( object ) => SQLHandle<@T>
+@[code]
+
+
+@[subsection]Query Database@[subsection]
+Then one can perform querying by,
+@[code]
+# SELECT * FROM Gene WHERE name = 'RAS';
+hd = database.Select( Gene ).Where().EQ( 'name', 'RAS' );
+# query and store the result into 'gene' object:
+hd.QueryOnce( gene );
+@[code]
+this module uses a series of method calls to contruct a SQL statement
+and then compile it. 
+The following two methods can be use to create a handler for
+thse two types of query,
+@[code]
+SQLDatabase<@T<SQLite|MySQL>>.Select( object, ... ) => SQLHandle<@T>
+SQLDatabase<@T<SQLite|MySQL>>.Update( object, ... ) => SQLHandle<@T>
+@[code]
+These two methods can take a class or a list of classes
+as parameters, which indicate which database tables to be queried.
+And after each of the class parameter, there can follow an integer,
+which indicates how many fields to be queried for that class/table.
+For example,
+@[code]
+hd = database.Select( Gene, 2 ).Where().EQ( 'name', 'RAS' );
+@[code]
+this will generate such SQL statement,
+@[code]
+# SELECT id,name FROM Gene WHERE name = 'RAS';
+@[code]
+
+Then the handler can call the following methods to prepare the SQL
+statement for a query,
+@[code]
+# WHERE
+SQLHandle<@T<SQLite|MySQL>>.Where( ) => SQLHandle<@T>
+# SET field=value, or, SET field=?
+SQLHandle<@T<SQLite|MySQL>>.Set( field :string, value=none ) => SQLHandle<@T>
+# SET field=field+value, or, SET field=field+?
+SQLHandle<@T<SQLite|MySQL>>.Add( field :string, value=none ) => SQLHandle<@T>
+# field=value, or, field=?
+SQLHandle<@T<SQLite|MySQL>>.EQ( field :string, value=none ) => SQLHandle<@T>
+# field!=value, or, field!=?
+SQLHandle<@T<SQLite|MySQL>>.NE( field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.GT( field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.GE( field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.LT( field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.LE( field :string, value=none ) => SQLHandle<@T>
+# SET table.field=value, or, SET table.field=?
+SQLHandle<@T<SQLite|MySQL>>.Set( table, field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.Add( table, field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.EQ( table, field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.NE( table, field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.GT( table, field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.GE( table, field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.LT( table, field :string, value=none ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.LE( table, field :string, value=none ) => SQLHandle<@T>
+# field IN ( values ), or, field IN ?
+SQLHandle<@T<SQLite|MySQL>>.In( field :string, values={} ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.In( table, field :string, values={} ) => SQLHandle<@T>
+# OR
+SQLHandle<@T<SQLite|MySQL>>.Or( ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.And( ) => SQLHandle<@T>
+SQLHandle<@T<SQLite|MySQL>>.Not( ) => SQLHandle<@T>
+# (
+SQLHandle<@T<SQLite|MySQL>>.LBrace( ) => SQLHandle<@T>
+# )
+SQLHandle<@T<SQLite|MySQL>>.RBrace( ) => SQLHandle<@T>
+# table1.field1=table2.field2
+SQLHandle<@T<SQLite|MySQL>>.Match( table1, table2, field1='', field2='' ) => SQLHandle<@T>
+# ORDER BY field ASC/DESC
+SQLHandle<@T<SQLite|MySQL>>.Sort( field :string, desc=0 ) => SQLHandle<@T>
+# ORDER BY table.field ASC/DESC
+SQLHandle<@T<SQLite|MySQL>>.Sort( table, field :string, desc=0 ) => SQLHandle<@T>
+# LIMIT limit, or, LIMIT limit OFFSET offset
+SQLHandle<@T<SQLite|MySQL>>.Range( limit :int, offset=0 ) => SQLHandle<@T>
+@[code]
+For the methods that take an optional parameter @[cyan]value@[cyan],
+if it is omitted, a place holder variable will be used,
+then data can be bind to these variables by,
+@[code]
+SQLHandle<@T<SQLite|MySQL>>.Bind( value, index=0 ) => SQLHandle<@T>
+@[code]
+A index can be given in the parameter list to indicate which to bind,
+if there is multiple place-holder variables. 
+If no index parameter is given, the binds will be done sequentially.
+
+
+At last these two methods can be called to perform the query,
+@[code]
+SQLHandle<@T<SQLite|MySQL>>.Query( ... ) => int
+SQLHandle<@T<SQLite|MySQL>>.QueryOnce( ... ) => int
+@[code]
+These two method will take class instance(s) as parameter,
+and store the resulting data in the members of the class instances,
+if the query is successful. These method will return 1 when query
+is successful, otherwise return 0.
+If the query hits multiple records, Handler.Query() can be called
+repeatedly to get the result.
+After calling Handler.Query(), it is necessary to call Handler.Done()
+to reset the handle. If Handler.QueryOnce() is called, there will be no
+such necessary.
+
+
+@[subsection]Other Methods@[subsection]
+@[code]
+DataModel.Query( sql :string ) => int
+@[code]
+Perform a arbitrary query, return the status of the query.
+
+@[code]
+SQLHandle<@T<SQLite|MySQL>>.sqlstring( ) => string
+@[code]
+Return the SQL statemenet as a string.
+
+@[code]
+SQLHandle<@T<SQLite|MySQL>>.Insert( object ) => int
+@[code]
+Use the handler created by @[cyan]DataModel.Insert()@[cyan]
+to insert more records.
+
+@[text]

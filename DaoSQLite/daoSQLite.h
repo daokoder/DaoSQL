@@ -1,5 +1,5 @@
 
-/* DaoDataModel:
+/* DaoSQLiteDB:
  * Database handling with mapping class instances to database table records.
  * Copyright (C) 2008-2012, Limin Fu (phoolimin@gmail.com).
  */
@@ -12,10 +12,10 @@
 
 #include"daoSQL.h"
 
-typedef struct DaoDataModel DaoDataModel;
-typedef struct DaoHandle DaoHandle;
+typedef struct DaoSQLiteDB DaoSQLiteDB;
+typedef struct DaoSQLiteHD DaoSQLiteHD;
 
-struct DaoDataModel
+struct DaoSQLiteDB
 {
 	DaoSQLDatabase base;
 
@@ -23,12 +23,12 @@ struct DaoDataModel
 	sqlite3_stmt *stmt;
 };
 
-DaoDataModel* DaoDataModel_New();
+DaoSQLiteDB* DaoSQLiteDB_New();
 
-struct DaoHandle
+struct DaoSQLiteHD
 {
 	DaoSQLHandle  base;
-	DaoDataModel  *model;
+	DaoSQLiteDB  *model;
 
 	sqlite3_stmt *stmt;
 };

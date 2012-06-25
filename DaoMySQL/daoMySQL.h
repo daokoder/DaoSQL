@@ -1,5 +1,5 @@
 
-/* DaoDataModel:
+/* DaoMySQLDB:
  * Database handling with mapping class instances to database table records.
  * Copyright (C) 2008-2011, Limin Fu (phoolimin@gmail.com).
  */
@@ -12,10 +12,10 @@
 
 #include"daoSQL.h"
 
-typedef struct DaoDataModel DaoDataModel;
-typedef struct DaoHandle DaoHandle;
+typedef struct DaoMySQLDB DaoMySQLDB;
+typedef struct DaoMySQLHD DaoMySQLHD;
 
-struct DaoDataModel
+struct DaoMySQLDB
 {
 	DaoSQLDatabase base;
 
@@ -23,12 +23,12 @@ struct DaoDataModel
 	MYSQL_STMT  *stmt;
 };
 
-DaoDataModel* DaoDataModel_New();
+DaoMySQLDB* DaoMySQLDB_New();
 
-struct DaoHandle
+struct DaoMySQLHD
 {
 	DaoSQLHandle  base;
-	DaoDataModel  *model;
+	DaoMySQLDB  *model;
 
 	MYSQL_STMT  *stmt;
 	MYSQL_RES   *res;
