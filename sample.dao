@@ -13,9 +13,9 @@ class Gene
 db = SQLDatabase<SQLite>( 'Test_Gene.db' );
 
 # create a table for class Gene
-try{
+frame {
+	defer{ recover() }
 	db.CreateTable( Gene );
-}catch{
 }
 
 gene = Gene{ 0, 'RAS', '...AATCCGG...' };

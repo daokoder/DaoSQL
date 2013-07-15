@@ -139,7 +139,6 @@ static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DaoClass *klass = (DaoClass*) p[1];
-	DaoType **types;
 	DString **names;
 	DString *sql = DString_New(1);
 	DString *tabname = NULL;
@@ -169,13 +168,13 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoObject *object )
 {
 	DaoClass  *klass = object->defClass;
-	DaoType **types = klass->objDataType->items.pType;
+	DaoVariable **vars = klass->instvars->items.pVar;
 	DaoValue  *value;
 	MYSQL_BIND *bind;
 	char *pbuf, *tpname;
 	int i, k = -1;
 	for(i=1; i<klass->objDataName->size; i++){
-		tpname = types[i]->name->mbs;
+		tpname = vars[i]->dtype->name->mbs;
 		value = object->objValues[i];
 		bind = handle->parbind + (i-1);
 		pbuf = handle->base.pardata[i-1]->mbs;
@@ -378,7 +377,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		if( klass != handle->base.classList->items.pClass[i-1] ) goto RaiseException2;
 		m = handle->base.countList->items.pInt[i-1];
 		for(j=1; j<m; j++){
-			type = klass->objDataType->items.pType[j];
+			type = klass->instvars->items.pVar[j]->dtype;
 			value = object->objValues[j];
 			field = row[k];
 			k ++;
@@ -424,7 +423,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		if( klass != handle->base.classList->items.pClass[i-1] ) goto RaiseException2;
 		m = handle->base.countList->items.pInt[i-1];
 		for(j=1; j<m; j++){
-			type = klass->objDataType->items.pType[j];
+			type = klass->instvars->items.pVar[j]->dtype;
 			value = object->objValues[j];
 			if( value == NULL || value->type != type->tid ){
 				DaoValue_Move( type->value, & object->objValues[j], type );

@@ -1,0 +1,37 @@
+
+project = DaoMake::Project( "DaoSQL" ) 
+
+daovm  = DaoMake::FindPackage( "Dao",    $REQUIRED )
+sqlite = DaoMake::FindPackage( "SQLite", $OPTIONAL )
+mysql  = DaoMake::FindPackage( "MySQL",  $OPTIONAL )
+
+if( daovm == none ) return
+
+project.UseImportLibrary( daovm, "dao" )
+
+project.AddIncludePath( "." )
+project.AddIncludePath( "../../kernel" )
+
+daosql_objs = project.AddObjects( { "daoSQL.c" }, { "daoSQL.h" } )
+daosql_dll = project.AddSharedLibrary( "DaoSQL", daosql_objs )
+
+if( sqlite != none ){
+	sqlite_objs = project.AddObjects( { "DaoSQLite/daoSQLite.c" }, { "DaoSQLite/daoSQLite.h" } )
+	sqlite_dll = project.AddSharedLibrary( "DaoSQLite", sqlite_objs )
+	sqlite_dll.UseSharedLibrary( sqlite )
+	sqlite_dll.UseSharedLibrary( project, "DaoSQL" )
+}
+
+if( mysql != none ){
+	mysql_objs  = project.AddObjects( { "DaoMySQL/daoMySQL.c" }, { "DaoMySQL/daoMySQL.h" } )
+	mysql_dll  = project.AddSharedLibrary( "DaoMySQL", mysql_objs )
+	mysql_dll.UseSharedLibrary( mysql )
+	mysql_dll.UseSharedLibrary( project, "DaoSQL" )
+}
+
+
+
+#project.GenerateFinder( $TRUE );
+#project.Install( daovm.GetPath( "MOD-PATH" ), daosql_dll );
+#project.Install( daovm.GetPath( "MOD-PATH" ), sqlite_dll );
+#project.Install( daovm.GetPath( "MOD-PATH" ), mysql_dll );

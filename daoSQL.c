@@ -199,24 +199,28 @@ static DString* DaoSQLDatabase_TableName( DaoClass *klass )
 }
 void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql, int tp )
 {
-	DaoType **types;
+	DaoVariable **vars;
 	DString **names;
 	DString *tabname = NULL;
 	DNode *node;
 	char *tpname;
 	int i;
-	DString_SetMBS( sql, "__TABLE_PROPERTY__" );
+	if( tp == DAO_SQLITE ){
+		DString_SetMBS( sql, "__SQLITE_TABLE_PROPERTY__" );
+	}else if( tp == DAO_MYSQL ){
+		DString_SetMBS( sql, "__MYSQL_TABLE_PROPERTY__" );
+	}
 	node = DMap_Find( klass->lookupTable, sql );
 	DString_Clear( sql );
 	names = klass->objDataName->items.pString;
-	types = klass->objDataType->items.pType;
+	vars = klass->instvars->items.pVar;
 	tabname = DaoSQLDatabase_TableName( klass );
 	DString_AppendMBS( sql, "CREATE TABLE " );
 	DString_Append( sql, tabname );
 	DString_AppendMBS( sql, "(" );
 	for(i=1; i<klass->objDataName->size; i++){
 		if( i >1 ) DString_AppendMBS( sql, "," );
-		tpname = types[i]->name->mbs;
+		tpname = vars[i]->dtype->name->mbs;
 		DString_AppendMBS( sql, "\n" );
 		DString_Append( sql, names[i] );
 		DString_AppendMBS( sql, "  " );
@@ -260,7 +264,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		return 0;
 	}
 	if( p[1]->type == DAO_LIST ){
-		if( p[1]->xList.items.size ==0 ) return;
+		if( p[1]->xList.items.size ==0 ) return 0;
 		for( i=0; i<p[1]->xList.items.size; i++ ){
 			if( p[1]->xList.items.items.pValue[i]->type != DAO_OBJECT ){
 				DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
@@ -579,7 +583,7 @@ static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N )
 	if( N == 3 ){
 		for(i=1; i<c1->objDataName->size; i++){
 			DNode *node = DMap_Find( c2->lookupTable, c1->objDataName->items.pVoid[i] );
-			if( node && LOOKUP_ST( node->value.pInt ) == DAO_CLASS_VARIABLE ){
+			if( node && LOOKUP_ST( node->value.pInt ) == DAO_OBJECT_VARIABLE ){
 				if( k >0 ) DString_AppendMBS( handler->sqlSource, " AND " );
 				DString_Append( handler->sqlSource, tabname1 );
 				DString_AppendMBS( handler->sqlSource, "." );
@@ -596,10 +600,12 @@ static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N )
 		DString *field2 = p[3]->xString.data;
 		DNode *node1, *node2;
 		if( N > 4 ) field2 = p[4]->xString.data;
+		DString_ToMBS( field1 ); /* c1->lookupTable is a hash with MBS keys; */
+		DString_ToMBS( field2 );
 		node1 = DMap_Find( c1->lookupTable, field1 );
-		node2 = DMap_Find( c1->lookupTable, field2 );
-		if( node1 && LOOKUP_ST( node1->value.pInt ) == DAO_CLASS_VARIABLE 
-				&& node2 && LOOKUP_ST( node2->value.pInt ) == DAO_CLASS_VARIABLE ){
+		node2 = DMap_Find( c2->lookupTable, field2 );
+		if( node1 && LOOKUP_ST( node1->value.pInt ) == DAO_OBJECT_VARIABLE 
+				&& node2 && LOOKUP_ST( node2->value.pInt ) == DAO_OBJECT_VARIABLE ){
 			DString_Append( handler->sqlSource, tabname1 );
 			DString_AppendMBS( handler->sqlSource, "." );
 			DString_Append( handler->sqlSource, field1 );
