@@ -155,8 +155,8 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 	for(i=1; i<klass->objDataName->size; i++){
 		tpname = vars[i]->dtype->name->mbs;
 		value = object->objValues[i];
-		//printf( "%3i: %s\n", i, klass->objDataName->items.pString[i]->mbs );
-		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ){
+		//fprintf( stderr, "%3i: %s %s\n", i, klass->objDataName->items.pString[i]->mbs, tpname );
+		if( strstr( tpname, "INT_PRIMARY_KEY" ) == tpname ){
 			key = i;
 			sqlite3_bind_null( stmt, i );
 			continue;
@@ -262,6 +262,7 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	int k, index = p[2]->xInteger.value + 1; /* 1-based index for sqlite; */
 
 	DaoProcess_PutValue( proc, p[0] );
+	if( handle->base.executed ) sqlite3_reset( handle->stmt );
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
 		if( sqlite3_prepare_v2( db, sql->mbs, sql->size, & handle->stmt, NULL ) )
@@ -306,22 +307,19 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	daoint *res = DaoProcess_PutInteger( proc, 1 );
 	const unsigned char *txt;
 	int i, j, k = 0;
-	int m;
-	//printf( "%s\n", handle->base.sqlSource->mbs );
+	int m, count;
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
 		if( sqlite3_prepare_v2( handle->model->db, sql->mbs, sql->size, & handle->stmt, NULL ) ) goto RaiseException;
 		handle->base.prepared = 1;
 		handle->base.executed = 0;
 	}
-	if( handle->base.executed ==0 ){
-		k = sqlite3_step( handle->stmt );
-		if( k > SQLITE_OK && k < SQLITE_ROW ) goto RaiseException;
-		handle->base.executed = 1;
-		*res = (k == SQLITE_ROW) || (k == SQLITE_DONE);
-	}
+	k = sqlite3_step( handle->stmt );
+	handle->base.executed = 1;
+	if( k > SQLITE_OK && k < SQLITE_ROW ) goto RaiseException;
+	*res = (k == SQLITE_ROW) || (k == SQLITE_DONE);
+
 	if( sqlite3_data_count( handle->stmt ) ==0 ){
-		if( handle->base.executed ) sqlite3_reset( handle->stmt );
 		*res = 0;
 		return;
 	}
@@ -340,39 +338,37 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 				value = object->objValues[j];
 			}
 			switch( type->tid ){
-				case DAO_INTEGER :
-					if( sizeof(daoint) == 4 ){
-						value->xInteger.value = sqlite3_column_int( handle->stmt, k );
-					}else{
-						value->xInteger.value = sqlite3_column_int64( handle->stmt, k );
-					}
-					break;
-				case DAO_FLOAT   :
-					value->xFloat.value = sqlite3_column_double( handle->stmt, k );
-					break;
-				case DAO_DOUBLE  :
-					value->xDouble.value = sqlite3_column_double( handle->stmt, k );
-					break;
-				case DAO_STRING  :
-					DString_Clear( value->xString.data );
-					txt = sqlite3_column_text( handle->stmt, k );
-					if( txt ) DString_AppendMBS( value->xString.data, (const char*)txt );
-					break;
-				default : break;
+			case DAO_INTEGER :
+				if( sizeof(daoint) == 4 ){
+					value->xInteger.value = sqlite3_column_int( handle->stmt, k );
+				}else{
+					value->xInteger.value = sqlite3_column_int64( handle->stmt, k );
+				}
+				break;
+			case DAO_FLOAT   :
+				value->xFloat.value = sqlite3_column_double( handle->stmt, k );
+				break;
+			case DAO_DOUBLE  :
+				value->xDouble.value = sqlite3_column_double( handle->stmt, k );
+				break;
+			case DAO_STRING  :
+				DString_Clear( value->xString.data );
+				txt = sqlite3_column_text( handle->stmt, k );
+				count = sqlite3_column_bytes( handle->stmt, k );
+				if( txt ) DString_AppendDataMBS( value->xString.data, (const char*)txt, count );
+				break;
+			default : break;
 			}
 			k ++;
 		}
 	}
-	if( handle->base.executed ) sqlite3_reset( handle->stmt );
 	return;
 RaiseException :
 	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
-	if( handle->base.executed ) sqlite3_reset( handle->stmt );
 	*res = 0;
 	return;
 RaiseException2 :
 	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
-	if( handle->base.executed ) sqlite3_reset( handle->stmt );
 	*res = 0;
 }
 static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
