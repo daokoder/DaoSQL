@@ -449,7 +449,8 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 	}
 	DString_Append( handler->sqlSource, field->xString.data );
 	DString_AppendMBS( handler->sqlSource, op );
-	if( N >2 ){
+
+	if( value->type ){
 		DaoValue_GetString( value, field->xString.data );
 		if( value->type == DAO_STRING ) DString_AppendMBS( handler->sqlSource, "\"" );
 		DString_Append( handler->sqlSource, field->xString.data );
@@ -458,6 +459,7 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 		DString_AppendMBS( handler->sqlSource, "?" );
 	}
 	handler->boolCount ++;
+	//fprintf( stderr, "%s\n", handler->sqlSource->mbs );
 }
 static void DaoSQLHandle_EQ( DaoProcess *proc, DaoValue *p[], int N )
 {
