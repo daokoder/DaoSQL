@@ -1,5 +1,5 @@
 
-/* DaoMySQLDB:
+/* DaoMySQL:
  * Database handling with mapping class instances to database table records.
  * Copyright (C) 2008-2011, Limin Fu (phoolimin@gmail.com).
  */
@@ -10,7 +10,7 @@
 DaoMySQLDB* DaoMySQLDB_New()
 {
 	DaoMySQLDB *self = malloc( sizeof(DaoMySQLDB) );
-	DaoSQLDatabase_Init( (DaoSQLDatabase*) self );
+	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, DAO_MYSQL );
 	self->mysql = mysql_init( NULL );
 	self->stmt = mysql_stmt_init( self->mysql );
 	return self;
@@ -56,7 +56,7 @@ DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 {
 	DaoMySQLHD *self = malloc( sizeof(DaoMySQLHD) );
 	int i;
-	DaoSQLHandle_Init( (DaoSQLHandle*) self );
+	DaoSQLHandle_Init( (DaoSQLHandle*) self, (DaoSQLDatabase*) model );
 	self->model = model;
 	self->res = NULL;
 	self->stmt = mysql_stmt_init( model->mysql );
@@ -139,14 +139,9 @@ static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DaoClass *klass = (DaoClass*) p[1];
-	DString **names;
 	DString *sql = DString_New(1);
-	DString *tabname = NULL;
-	DNode *node;
 	MYSQL_STMT *stmt;
-	char *tpname;
-	int i;
-	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql, DAO_MYSQL );
+	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	stmt = mysql_stmt_init( model->mysql );
 	if( mysql_stmt_prepare( stmt, sql->mbs, sql->size ) || mysql_stmt_execute( stmt ) )
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_error( model->mysql ) );
@@ -223,7 +218,6 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoMySQLHD *handle = DaoMySQLHD_New( model );
 	DaoObject *object = (DaoObject*) p[1];
 	DString *str = handle->base.sqlSource;
-	DString *tabname = NULL;
 	int i;
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
@@ -260,7 +254,6 @@ static void DaoMySQLDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DaoMySQLHD *handle = DaoMySQLHD_New( model );
 	DaoClass *klass;
-	DString *tabname = NULL;
 	int i, j;
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareUpdate( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;

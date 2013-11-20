@@ -4,6 +4,7 @@ project = DaoMake::Project( "DaoSQL" )
 daovm  = DaoMake::FindPackage( "Dao",    $REQUIRED )
 sqlite = DaoMake::FindPackage( "SQLite", $OPTIONAL )
 mysql  = DaoMake::FindPackage( "MySQL",  $OPTIONAL )
+libpq  = DaoMake::FindPackage( "PostgreSQL",  $OPTIONAL )
 
 if( daovm == none ) return
 
@@ -11,6 +12,8 @@ project.UseImportLibrary( daovm, "dao" )
 
 project.AddIncludePath( "." )
 project.AddIncludePath( "../../kernel" )
+
+if( DaoMake::IsMacOSX() ) project.AddDefinition( "__BSD__" )
 
 daosql_objs = project.AddObjects( { "daoSQL.c" }, { "daoSQL.h" } )
 daosql_dll = project.AddSharedLibrary( "DaoSQL", daosql_objs )
@@ -27,6 +30,15 @@ if( mysql != none ){
 	mysql_dll  = project.AddSharedLibrary( "DaoMySQL", mysql_objs )
 	mysql_dll.UseSharedLibrary( mysql )
 	mysql_dll.UseSharedLibrary( project, "DaoSQL" )
+}
+
+if( libpq != none ){
+	libpq_objs  = project.AddObjects( { "DaoPostgreSQL/daoPostgreSQL.c" },
+			{ "DaoPostgreSQL/daoPostgreSQL.h" } )
+	libpq_dll  = project.AddSharedLibrary( "DaoPostgreSQL", libpq_objs )
+	libpq_dll.UseSharedLibrary( mysql )
+	libpq_dll.UseSharedLibrary( libpq )
+	libpq_dll.UseSharedLibrary( project, "DaoSQL" )
 }
 
 

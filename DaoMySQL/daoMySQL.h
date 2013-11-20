@@ -1,5 +1,5 @@
 
-/* DaoMySQLDB:
+/* DaoMySQL:
  * Database handling with mapping class instances to database table records.
  * Copyright (C) 2008-2011, Limin Fu (phoolimin@gmail.com).
  */

@@ -7,8 +7,9 @@
 #include"string.h"
 #include"daoSQL.h"
 
-void DaoSQLDatabase_Init( DaoSQLDatabase *self )
+void DaoSQLDatabase_Init( DaoSQLDatabase *self, int type )
 {
+	self->type = type;
 	self->dataClass = DMap_New(0,0);
 	self->name = DString_New(1);
 	self->host = DString_New(1);
@@ -93,9 +94,10 @@ static void DaoSQLDatabase_GetPassword( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutString( proc, self->password );
 }
 
-void DaoSQLHandle_Init( DaoSQLHandle *self )
+void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db )
 {
 	int i;
+	self->database = db;
 	self->sqlSource = DString_New(1);
 	self->buffer = DString_New(1);
 	self->classList = DArray_New(0);
@@ -197,7 +199,7 @@ static DString* DaoSQLDatabase_TableName( DaoClass *klass )
 		return klass->constants->items.pConst[id]->value->xString.data;
 	return klass->className;
 }
-void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql, int tp )
+void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql )
 {
 	DaoVariable **vars;
 	DString **names;
@@ -205,10 +207,10 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 	DNode *node;
 	char *tpname;
 	int i;
-	if( tp == DAO_SQLITE ){
-		DString_SetMBS( sql, "__SQLITE_TABLE_PROPERTY__" );
-	}else if( tp == DAO_MYSQL ){
-		DString_SetMBS( sql, "__MYSQL_TABLE_PROPERTY__" );
+	switch( self->type ){
+	case DAO_SQLITE     : DString_SetMBS( sql, "__SQLITE_TABLE_PROPERTY__" ); break;
+	case DAO_MYSQL      : DString_SetMBS( sql, "__MYSQL_TABLE_PROPERTY__" );  break;
+	case DAO_POSTGRESQL : DString_SetMBS( sql, "__POSTGRESQL_TABLE_PROPERTY__" ); break;
 	}
 	node = DMap_Find( klass->lookupTable, sql );
 	DString_Clear( sql );
@@ -227,10 +229,13 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 		if( strcmp( tpname, "INT_PRIMARY_KEY" ) ==0 ){
 			DString_AppendMBS( sql, "INTEGER PRIMARY KEY" );
 		}else if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ){
-			if( tp == DAO_SQLITE )
+			if( self->type == DAO_SQLITE ){
 				DString_AppendMBS( sql, "INTEGER PRIMARY KEY AUTOINCREMENT" );
-			else
+			}else if( self->type == DAO_POSTGRESQL ){
+				DString_AppendMBS( sql, "SERIAL PRIMARY KEY" );
+			}else{
 				DString_AppendMBS( sql, "INTEGER PRIMARY KEY AUTO_INCREMENT" );
+			}
 		}else if( strstr( tpname, "CHAR" ) == tpname ){
 			DString_AppendMBS( sql, "CHAR(" );
 			DString_AppendMBS( sql, tpname+4 );
@@ -258,7 +263,8 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DaoClass  *klass;
 	DString *str = self->sqlSource;
 	DString *tabname = NULL;
-	int i;
+	char buf[20];
+	int i, k;
 	if( p[1]->type != DAO_LIST && p[1]->type != DAO_OBJECT ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 		return 0;
@@ -288,14 +294,27 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString_AppendMBS( self->sqlSource, "INSERT INTO " );
 	DString_Append( self->sqlSource, tabname );
 	DString_AppendMBS( self->sqlSource, "(" );
-	for(i=1; i<klass->objDataName->size; i++){
-		if( i >1 ) DString_AppendMBS( self->sqlSource, "," );
+	for(i=1,k=0; i<klass->objDataName->size; i++){
+		if( self->database->type == DAO_POSTGRESQL ){
+			char *tpname = klass->instvars->items.pVar[i]->dtype->name->mbs;
+			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
+		}
+		if( k++ ) DString_AppendMBS( self->sqlSource, "," );
 		DString_Append( self->sqlSource, klass->objDataName->items.pString[i] );
 	}
 	DString_AppendMBS( self->sqlSource, ") VALUES(" );
-	for(i=1; i<klass->objDataName->size; i++){
-		if( i >1 ) DString_AppendMBS( self->sqlSource, "," );
-		DString_AppendMBS( self->sqlSource, "?" );
+	for(i=1,k=0; i<klass->objDataName->size; i++){
+		if( self->database->type == DAO_POSTGRESQL ){
+			char *tpname = klass->instvars->items.pVar[i]->dtype->name->mbs;
+			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
+		}
+		if( k++ ) DString_AppendMBS( self->sqlSource, "," );
+		if( self->database->type == DAO_POSTGRESQL ){
+			sprintf( buf, "$%i", k );
+			DString_AppendMBS( self->sqlSource, buf );
+		}else{
+			DString_AppendMBS( self->sqlSource, "?" );
+		}
 	}
 	DString_AppendMBS( self->sqlSource, ");" );
 	//printf( "%s\n", self->sqlSource->mbs );

@@ -1,5 +1,5 @@
 
-/* DaoSQLiteDB:
+/* DaoSQLite:
  * Database handling with mapping class instances to database table records.
  * Copyright (C) 2008-2012, Limin Fu (phoolimin@gmail.com).
  */
@@ -11,7 +11,7 @@
 DaoSQLiteDB* DaoSQLiteDB_New()
 {
 	DaoSQLiteDB *self = malloc( sizeof(DaoSQLiteDB) );
-	DaoSQLDatabase_Init( (DaoSQLDatabase*) self );
+	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, DAO_SQLITE );
 	self->db = NULL;
 	self->stmt = NULL;
 	return self;
@@ -56,7 +56,7 @@ static DaoType *dao_type_sqlite3_database = NULL;
 DaoSQLiteHD* DaoSQLiteHD_New( DaoSQLiteDB *model )
 {
 	DaoSQLiteHD *self = malloc( sizeof(DaoSQLiteHD) );
-	DaoSQLHandle_Init( (DaoSQLHandle*) self );
+	DaoSQLHandle_Init( (DaoSQLHandle*) self, (DaoSQLDatabase*) model );
 	self->model = model;
 	self->stmt = NULL;
 	return self;
@@ -109,7 +109,7 @@ static void DaoSQLiteDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 	DString *sql = DString_New(1);
 	sqlite3_stmt *stmt = NULL;
 	int rc = 0;
-	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql, DAO_SQLITE );
+	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	rc = sqlite3_prepare_v2( model->db, sql->mbs, sql->size, & stmt, NULL );
 	if( rc ) DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( model->db ) );
 	if( rc == 0 ){
