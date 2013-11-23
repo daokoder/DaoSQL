@@ -36,7 +36,6 @@ if( libpq != none ){
 	libpq_objs  = project.AddObjects( { "DaoPostgreSQL/daoPostgreSQL.c" },
 			{ "DaoPostgreSQL/daoPostgreSQL.h" } )
 	libpq_dll  = project.AddSharedLibrary( "DaoPostgreSQL", libpq_objs )
-	libpq_dll.UseSharedLibrary( mysql )
 	libpq_dll.UseSharedLibrary( libpq )
 	libpq_dll.UseSharedLibrary( project, "DaoSQL" )
 }

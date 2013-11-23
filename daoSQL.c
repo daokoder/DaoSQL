@@ -106,6 +106,7 @@ void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db )
 	self->boolCount = 0;
 	self->prepared = 0;
 	self->executed = 0;
+	self->paramCount = 0;
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		self->pardata[i] = DString_New(1);
 		self->resdata[i] = DString_New(1);
@@ -152,22 +153,22 @@ static DaoFuncItem handlerMeths[]=
 {
 	{ DaoSQLHandle_SQLString, "sqlstring( self :@SQLHandle )=>string" },
 	{ DaoSQLHandle_Where,  "Where( self :@SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_Set, "Set( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_Add, "Add( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_Set,"Set( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_Add,"Add( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, table :class, field :string, value:=none )=>@SQLHandle" },
+	{ DaoSQLHandle_Set, "Set( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_Add, "Add( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_Set,"Set( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_Add,"Add( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_EQ, "EQ( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_NE, "NE( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GT, "GT( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_GE, "GE( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LT, "LT( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
+	{ DaoSQLHandle_LE, "LE( self :@SQLHandle, table :class, field :string, value :any=none )=>@SQLHandle" },
 	{ DaoSQLHandle_IN, "In( self :@SQLHandle, field :string, values:list<@T>={} )=>@SQLHandle" },
 	{ DaoSQLHandle_IN, "In( self :@SQLHandle, table :class, field :string, values:list<@T>={} )=>@SQLHandle" },
 	{ DaoSQLHandle_OR,"Or( self :@SQLHandle )=>@SQLHandle" },
@@ -302,12 +303,15 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		if( k++ ) DString_AppendMBS( self->sqlSource, "," );
 		DString_Append( self->sqlSource, klass->objDataName->items.pString[i] );
 	}
+	self->paramCount = 0;
 	DString_AppendMBS( self->sqlSource, ") VALUES(" );
 	for(i=1,k=0; i<klass->objDataName->size; i++){
+		DaoType *type = klass->instvars->items.pVar[i]->dtype;
 		if( self->database->type == DAO_POSTGRESQL ){
 			char *tpname = klass->instvars->items.pVar[i]->dtype->name->mbs;
 			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
+		self->partypes[self->paramCount++] = type;
 		if( k++ ) DString_AppendMBS( self->sqlSource, "," );
 		if( self->database->type == DAO_POSTGRESQL ){
 			sprintf( buf, "$%i", k );
@@ -343,6 +347,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DaoClass *klass;
 	DString *tabname = NULL;
 	int i, j, m, nclass = 0;
+	self->paramCount = 0;
 	DString_AppendMBS( self->sqlSource, "SELECT " );
 	for(i=1; i<N; i++) if( p[i]->type == DAO_CLASS ) nclass ++;
 	for(i=1; i<N; i++){
@@ -387,6 +392,7 @@ int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DaoClass *klass;
 	DString *tabname = NULL;
 	int i, j;
+	self->paramCount = 0;
 	DString_AppendMBS( self->sqlSource, "UPDATE " );
 	for(i=1; i<N; i++){
 		if( i >1 ) DString_AppendMBS( self->sqlSource, "," );
@@ -403,6 +409,22 @@ static void DaoSQLHandle_SQLString( DaoProcess *proc, DaoValue *p[], int N )
 	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
 	DaoProcess_PutString( proc, handler->sqlSource );
 }
+static void DString_AppendSQL( DString *self, DString *content, int escape )
+{
+	DString *mbstring;
+	
+	if( escape == 0 ){
+		DString_Append( self, content );
+		return;
+	}
+	mbstring = DString_New(1);
+	DString_Append( mbstring, content );
+	DString_ChangeMBS( mbstring, "[\\\'\"]", "\\%0", 0 );
+	DString_AppendMBS( self, "\'" );
+	DString_Append( self, mbstring );
+	DString_AppendMBS( self, "\'" );
+	DString_Delete( mbstring );
+}
 static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add )
 {
 	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
@@ -410,12 +432,20 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 	DString *tabname = NULL;
 	DaoValue *field = p[1];
 	DaoValue *value = p[2];
+	DaoClass *klass;
+
 	DaoProcess_PutValue( proc, p[0] );
+	if( handler->classList->size == 0 ){
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		return;
+	}
+	klass = handler->classList->items.pClass[0];
 	if( handler->setCount ) DString_AppendMBS( handler->sqlSource, ", " );
 	DString_Assign( fname, field->xString.data );
 	if( p[1]->type == DAO_CLASS ){
 		field = p[2];
 		value = p[3];
+		klass = (DaoClass*) p[1];
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 		DString_Append( fname, tabname );
 		DString_AppendMBS( fname, "." );
@@ -428,11 +458,18 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 	}
 	if( N >2 ){
 		DaoValue_GetString( value, field->xString.data );
-		if( value->type == DAO_STRING ) DString_AppendMBS( handler->sqlSource, "\"" );
-		DString_Append( handler->sqlSource, field->xString.data );
-		if( value->type == DAO_STRING ) DString_AppendMBS( handler->sqlSource, "\"" );
+		DString_AppendSQL( handler->sqlSource, field->xString.data, value->type == DAO_STRING );
 	}else{
-		DString_AppendMBS( handler->sqlSource, "?" );
+		int status = 0;
+		DaoType **type = DaoClass_GetDataType( klass, fname, & status, NULL );
+		handler->partypes[handler->paramCount++] = type ? *type : NULL;
+		if( handler->database->type == DAO_POSTGRESQL ){
+			char buf[20];
+			sprintf( buf, "$%i", handler->paramCount );
+			DString_AppendMBS( handler->sqlSource, buf );
+		}else{
+			DString_AppendMBS( handler->sqlSource, "?" );
+		}
 	}
 	handler->setCount ++;
 	DString_Delete( fname );
@@ -457,7 +494,14 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 	DString *tabname = NULL;
 	DaoValue *field = p[1];
 	DaoValue *value = p[2];
+	DaoClass *klass;
+
 	DaoProcess_PutValue( proc, p[0] );
+	if( handler->classList->size == 0 ){
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		return;
+	}
+	klass = handler->classList->items.pClass[0];
 	if( handler->boolCount ) DString_AppendMBS( handler->sqlSource, " AND " );
 	if( p[1]->type == DAO_CLASS ){
 		field = p[2];
@@ -471,11 +515,18 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 
 	if( value->type ){
 		DaoValue_GetString( value, field->xString.data );
-		if( value->type == DAO_STRING ) DString_AppendMBS( handler->sqlSource, "\"" );
-		DString_Append( handler->sqlSource, field->xString.data );
-		if( value->type == DAO_STRING ) DString_AppendMBS( handler->sqlSource, "\"" );
+		DString_AppendSQL( handler->sqlSource, field->xString.data, value->type == DAO_STRING );
 	}else{
-		DString_AppendMBS( handler->sqlSource, "?" );
+		int status = 0;
+		DaoType **type = DaoClass_GetDataType( klass, field->xString.data, & status, NULL );
+		handler->partypes[handler->paramCount++] = type ? *type : NULL;
+		if( handler->database->type == DAO_POSTGRESQL ){
+			char buf[20];
+			sprintf( buf, "$%i", handler->paramCount );
+			DString_AppendMBS( handler->sqlSource, buf );
+		}else{
+			DString_AppendMBS( handler->sqlSource, "?" );
+		}
 	}
 	handler->boolCount ++;
 	//fprintf( stderr, "%s\n", handler->sqlSource->mbs );

@@ -41,12 +41,14 @@ struct DaoSQLHandle
 	DArray   *countList;
 	DString  *sqlSource;
 	DString  *buffer;
+	int  paramCount;
 	int  boolCount;
 	int  setCount;
 	int  prepared;
 	int  executed;
 	unsigned long  reslen;
 
+	DaoType  *partypes[ MAX_PARAM_COUNT ];
 	DString  *pardata[ MAX_PARAM_COUNT ];
 	DString  *resdata[ MAX_PARAM_COUNT ];
 };
