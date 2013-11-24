@@ -182,6 +182,8 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index )
 {
 	DString *mbstring;
+	DaoMap *keyvalues = (DaoMap*) value;
+	DNode *it;
 
 	self->paramLengths[index] = 0;
 	self->paramFormats[index] = 0;
@@ -212,6 +214,18 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		DString_ToMBS( mbstring );
 		DString_SetDataMBS( self->base.pardata[index], mbstring->mbs, mbstring->size );
 		self->paramValues[index] = self->base.pardata[index]->mbs;
+		self->paramLengths[index] = mbstring->size;
+		break;
+	case DAO_MAP :
+		mbstring = self->base.pardata[index];
+		DString_Reset( mbstring, 0 );
+		for(it=DaoMap_First(keyvalues); it; it=DaoMap_Next(keyvalues,it)){
+			if( mbstring->size ) DString_AppendChar( mbstring, ',' );
+			DString_AppendSQL( mbstring, it->key.pValue->xString.data, 1, "\"" );
+			DString_AppendMBS( mbstring, "=>" );
+			DString_AppendSQL( mbstring, it->value.pValue->xString.data, 1, "\"" );
+		}
+		self->paramValues[index] = mbstring->mbs;
 		self->paramLengths[index] = mbstring->size;
 		break;
 	default : break;
@@ -276,6 +290,9 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			}else if( strcmp( type->name->mbs, "TEXT" ) == 0 ){
 				self->paramTypes[k] = TEXTOID;
 			}
+			break;
+		case DAO_MAP :
+			self->paramTypes[k] = TEXTOID;
 			break;
 		}
 	}
@@ -378,6 +395,37 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	DaoPostgreSQLHD_BindValue( handle, value, index );
 }
+static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int status )
+{
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = handle->model;
+
+	printf( "%s\n", handle->base.sqlSource->mbs );
+
+	if( handle->base.prepared ==0 ){
+		DaoPostgreSQLDB *db = handle->model;
+		DString *sql = handle->base.sqlSource;
+		if( handle->res ) PQclear( handle->res );
+		handle->res = PQprepare( db->conn, handle->name->mbs, sql->mbs, handle->base.paramCount, handle->paramTypes );
+		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
+			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
+			return 0;
+		}
+		handle->base.prepared = 1;
+		handle->base.executed = 0;
+	}
+	if( handle->base.executed ==0 ){
+		if( handle->res ) PQclear( handle->res );
+		handle->res = PQexecPrepared( model->conn, handle->name->mbs, handle->base.paramCount,
+				handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
+		if( PQresultStatus( handle->res ) != status ){
+			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
+			return 0;
+		}
+		handle->base.executed = 1;
+	}
+	return 1;
+}
 static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	char *pdata;
@@ -392,29 +440,10 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoClass  *klass;
 	DaoType *type;
 	DaoValue *value;
+	DaoMap *keyvalues;
+	DNode *it;
 
-	if( handle->base.prepared ==0 ){
-		DaoPostgreSQLDB *db = handle->model;
-		DString *sql = handle->base.sqlSource;
-		if( handle->res ) PQclear( handle->res );
-		handle->res = PQprepare( db->conn, handle->name->mbs, sql->mbs, handle->base.paramCount, handle->paramTypes );
-		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
-			return;
-		}
-		handle->base.prepared = 1;
-		handle->base.executed = 0;
-	}
-	if( handle->base.executed ==0 ){
-		if( handle->res ) PQclear( handle->res );
-		handle->res = PQexecPrepared( model->conn, handle->name->mbs, handle->base.paramCount,
-				handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
-		if( PQresultStatus( handle->res ) != PGRES_TUPLES_OK ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
-			return;
-		}
-		handle->base.executed = 1;
-	}
+	if( DaoPostgreSQLHD_Execute( proc, p, N, PGRES_TUPLES_OK ) == 0 ) return;
 
 	for(i=1; i<N; i++){
 		if( p[i]->type == DAO_OBJECT ){
@@ -458,6 +487,16 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 					len = PQgetlength( handle->res, row, k-1 );
 					DString_SetDataMBS( value->xString.data, pdata, len );
 					break;
+				case DAO_MAP :
+					k --;
+					keyvalues = (DaoMap*) value;
+					for(it=DaoMap_First(keyvalues); it; it=DaoMap_Next(keyvalues,it)){
+						pdata = PQgetvalue( handle->res, row, k++ );
+						if( pdata == NULL ) continue;
+						len = PQgetlength( handle->res, row, k-1 );
+						DString_SetDataMBS( it->value.pValue->xString.data, pdata, len );
+					}
+					break;
 				default : break;
 				}
 			}
@@ -475,7 +514,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
-	DaoPostgreSQLHD_Query( proc, p, N );
+	DaoPostgreSQLHD_Execute( proc, p, N, PGRES_COMMAND_OK );
 	//if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
 static void DaoPostgreSQLHD_Done( DaoProcess *proc, DaoValue *p[], int N )
