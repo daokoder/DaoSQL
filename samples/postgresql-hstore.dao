@@ -1,0 +1,47 @@
+
+load libDaoPostgreSQL
+
+class Product
+{
+	var id   : INT_PRIMARY_KEY_AUTO_INCREMENT;
+	var name : VARCHAR100;
+	var attributes : HSTORE;
+}
+
+db = SQLDatabase<PostgreSQL>( 'test_db', 'localhost', 'min' );
+
+frame {
+	defer{ recover() }
+	db.Query( 'CREATE EXTENSION hstore;' );
+}
+
+# create a table for class Gene
+frame {
+	defer{ recover() }
+	db.CreateTable( Product );
+}
+
+product = Product::{
+	0,
+	'Geek Love: A Novel',
+	{
+		'author' -> 'Katherine Dunn',
+		'pages'   -> '368',
+		'publisher' -> 'unknown',
+		'category' -> 'fiction'
+	}
+};
+# insert a record into the table
+db.Insert( product );
+
+db.Update( Product ).HStoreSet( 'attributes', { 'author' -> 'Someone' } ).QueryOnce();
+
+# SELECT * FROM Gene WHERE name = 'RASE';
+h = db.Select( product ).Where().HStoreContain( 'attributes', { 'category' -> 'fiction' } );
+io.writeln( std.about(h) )
+
+# query and store the result into 'product' object:
+h.Query( product ){
+	io.writeln( product.id, product.name, product.attributes );
+	return $continue;
+}

@@ -114,13 +114,36 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_Done( DaoProcess *proc, DaoValue *p[], int N );
 
+static void DaoPostgreSQLHD_HStoreSet( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_HStoreDelete( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_HStoreContain( DaoProcess *proc, DaoValue *p[], int N );
+
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoPostgreSQLHD_Insert, "Insert( self:SQLHandle<PostgreSQL>, object ) => int" },
-	{ DaoPostgreSQLHD_Bind, "Bind( self:SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Query, "Query( self:SQLHandle<PostgreSQL>, ... ) [=>enum<continue,done>] => int" },
-	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self:SQLHandle<PostgreSQL>, ... ) => int" },
-	{ DaoPostgreSQLHD_Done,  "Done( self:SQLHandle<PostgreSQL> )" },
+	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object ) => int" },
+	{ DaoPostgreSQLHD_Bind, "Bind( self :SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [=>enum<continue,done>] => int" },
+	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self :SQLHandle<PostgreSQL>, ... ) => int" },
+	{ DaoPostgreSQLHD_Done,  "Done( self :SQLHandle<PostgreSQL> )" },
+
+	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self :SQLHandle<PostgreSQL>, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, field :string, key :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, field :string, key :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+
+	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, table :class, field :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self :SQLHandle<PostgreSQL>, table :class, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, table :class, field :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, table :class, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+
 	{ NULL, NULL }
 };
 
@@ -179,11 +202,19 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutInteger( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
 	PQclear( res );
 }
+static void DString_AppendKeyValues( DString *self, DaoMap *keyvalues )
+{
+	DNode *it;
+	for(it=DaoMap_First(keyvalues); it; it=DaoMap_Next(keyvalues,it)){
+		if( self->size ) DString_AppendChar( self, ',' );
+		DString_AppendSQL( self, it->key.pValue->xString.data, 1, "\"" );
+		DString_AppendMBS( self, "=>" );
+		DString_AppendSQL( self, it->value.pValue->xString.data, 1, "\"" );
+	}
+}
 static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index )
 {
 	DString *mbstring;
-	DaoMap *keyvalues = (DaoMap*) value;
-	DNode *it;
 
 	self->paramLengths[index] = 0;
 	self->paramFormats[index] = 0;
@@ -219,12 +250,7 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 	case DAO_MAP :
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
-		for(it=DaoMap_First(keyvalues); it; it=DaoMap_Next(keyvalues,it)){
-			if( mbstring->size ) DString_AppendChar( mbstring, ',' );
-			DString_AppendSQL( mbstring, it->key.pValue->xString.data, 1, "\"" );
-			DString_AppendMBS( mbstring, "=>" );
-			DString_AppendSQL( mbstring, it->value.pValue->xString.data, 1, "\"" );
-		}
+		DString_AppendKeyValues( mbstring, (DaoMap*) value );
 		self->paramValues[index] = mbstring->mbs;
 		self->paramLengths[index] = mbstring->size;
 		break;
@@ -522,6 +548,90 @@ static void DaoPostgreSQLHD_Done( DaoProcess *proc, DaoValue *p[], int N )
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
 	//if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
+
+
+static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, const char *op, int update )
+{
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DString *fname, *tabname = NULL;
+	DaoValue *field = p[1];
+	DaoValue *value = p[2];
+	DaoClass *klass;
+	DaoType **type2;
+	DaoType *type;
+	int status = 0;
+	int ishstore = 0;
+
+	DaoProcess_PutValue( proc, p[0] );
+	if( handle->classList->size == 0 ){
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		return;
+	}
+	fname = DString_New(1);
+	klass = handle->classList->items.pClass[0];
+	if( handle->setCount ) DString_AppendMBS( handle->sqlSource, ", " );
+	DString_Assign( fname, field->xString.data );
+
+	type2 = DaoClass_GetDataType( klass, fname, & status, NULL );
+	type = type2 ? *type2 : NULL;
+	if( handle->database->type == DAO_POSTGRESQL && type != NULL ){
+		ishstore = strcmp( type->name->mbs, "HSTORE" ) == 0;
+	}
+
+	if( p[1]->type == DAO_CLASS ){
+		field = p[2];
+		value = p[3];
+		klass = (DaoClass*) p[1];
+		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
+		DString_Append( fname, tabname );
+		DString_AppendMBS( fname, "." );
+	}
+	DString_Append( handle->sqlSource, fname );
+	if( update ){
+		DString_AppendMBS( handle->sqlSource, "=" );
+		if( tabname != NULL ){
+			DString_Append( fname, tabname );
+			DString_AppendMBS( fname, "." );
+		}
+		DString_Append( handle->sqlSource, fname );
+	}
+	DString_AppendMBS( handle->sqlSource, op );
+
+	if( N >2 ){
+		DString *mbstring = field->xString.data;
+		DString_Reset( mbstring, 0 );
+		if( value->type == DAO_MAP ){
+			DString_AppendKeyValues( mbstring, (DaoMap*) value );
+			DString_AppendChar( handle->sqlSource, '\'' );
+			DString_Append( handle->sqlSource, mbstring );
+			DString_AppendChar( handle->sqlSource, '\'' );
+		}else{
+			DaoValue_GetString( value, field->xString.data );
+			DString_AppendSQL( handle->sqlSource, field->xString.data, value->type == DAO_STRING, "\'" );
+		}
+	}else{
+		char buf[20];
+		handle->partypes[handle->paramCount++] = type;
+		sprintf( buf, "$%i", handle->paramCount );
+		DString_AppendMBS( handle->sqlSource, buf );
+		DString_AppendMBS( handle->sqlSource, "::hstore" );
+	}
+	handle->setCount ++;
+	DString_Delete( fname );
+}
+static void DaoPostgreSQLHD_HStoreSet( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_HStore( proc, p, N, " || ", 1 );
+}
+static void DaoPostgreSQLHD_HStoreDelete( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_HStore( proc, p, N, " - ", 1 );
+}
+static void DaoPostgreSQLHD_HStoreContain( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_HStore( proc, p, N, " @> ", 0 );
+}
+
 
 int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {

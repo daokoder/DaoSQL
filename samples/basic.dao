@@ -9,6 +9,7 @@ class Gene
 	var seq  : TEXT;
 }
 # connect database
+#db = SQLDatabase<PostgreSQL>( 'dbname', 'host', 'user', 'pwd' );
 #db = SQLDatabase<MySQL>( 'dbname', 'host', 'user', 'pwd' );
 db = SQLDatabase<SQLite>( 'Test_Gene.db' );
 

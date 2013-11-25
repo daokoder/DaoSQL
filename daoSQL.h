@@ -66,5 +66,6 @@ int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 
 
 void DString_AppendSQL( DString *self, DString *content, int escape, const char *quote );
+DString* DaoSQLDatabase_TableName( DaoClass *klass );
 
 #endif
