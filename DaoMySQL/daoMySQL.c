@@ -89,15 +89,13 @@ static void DaoMySQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoMySQLHD_Done( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
 	{ DaoMySQLHD_Insert, "Insert( self:SQLHandle<MySQL>, object ) => int" },
 	{ DaoMySQLHD_Bind, "Bind( self:SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
-	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) => int" },
+	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) [=>enum<continue,done>] => int" },
 	{ DaoMySQLHD_QueryOnce, "QueryOnce( self:SQLHandle<MySQL>, ... ) => int" },
-	{ DaoMySQLHD_Done,  "Done( self:SQLHandle<MySQL> )" },
 	{ NULL, NULL }
 };
 
@@ -320,100 +318,57 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		default : break;
 	}
 }
-//#define USE_RES
-static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
+static int DaoMySQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
+	int i;
+	if( handle->base.prepared ==0 ){
+		DString *sql = handle->base.sqlSource;
+		mysql_stmt_free_result( handle->stmt );
+		if( mysql_stmt_prepare( handle->stmt, sql->mbs, sql->size ) ) goto RaiseException;
+		handle->base.prepared = 1;
+		handle->base.executed = 0;
+	}
+	if( handle->base.executed ==0 ){
+		mysql_stmt_bind_param( handle->stmt, handle->parbind );
+		if( mysql_stmt_execute( handle->stmt ) ) goto RaiseException;
+		handle->base.executed = 1;
+	}
+	for(i=1; i<N; i++){
+		if( p[i]->type == DAO_OBJECT ){
+			if( p[i]->xObject.defClass == handle->base.classList->items.pClass[i-1] ) continue;
+		}
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
+		return 0;
+	}
+	return 1;
+RaiseException :
+	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
+	return 0;
+}
+static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
 	DaoObject *object;
 	DaoClass  *klass;
 	DaoType *type;
 	DaoValue *value;
-	MYSQL_ROW row;
 	char *field;
 	unsigned long *lens;
-	daoint *res = DaoProcess_PutInteger( proc, 1 );
-	int i, j, k = 0, rc = 0;
-	int pitch, offset;
-	int m;
-	//printf( "%s\n", handle->base.sqlSource->mbs );
-	if( handle->base.prepared ==0 ){
-		DString *sql = handle->base.sqlSource;
-		mysql_stmt_free_result( handle->stmt );
-		if( mysql_stmt_prepare( handle->stmt, sql->mbs, sql->size ) )
-			goto RaiseException;
-		handle->base.prepared = 1;
-		handle->base.executed = 0;
-	}
-	if( handle->base.executed ==0 ){
-#ifdef USE_RES
-		if( handle->res ) mysql_free_result( handle->res );
-#endif
-		mysql_stmt_bind_param( handle->stmt, handle->parbind );
-		if( mysql_stmt_execute( handle->stmt ) ) goto RaiseException;
-#ifdef USE_RES
-		handle->res = mysql_use_result( handle->model->mysql );
-#endif
-		handle->base.executed = 1;
-	}
-#ifdef USE_RES
-	m = mysql_num_fields( handle->res );
-	row = mysql_fetch_row( handle->res );
-	if( row == NULL ){
-		*res = 0;
-		return;
-	}
-	lens = mysql_fetch_lengths( handle->res );
-	for(i=1; i<N; i++){
-		if( p[i]->type != DAO_OBJECT ) goto RaiseException2;
-		object = (DaoObject*) p[i];
-		klass = object->myClass;
-		if( klass != handle->base.classList->items.pClass[i-1] ) goto RaiseException2;
-		m = handle->base.countList->items.pInt[i-1];
-		for(j=1; j<m; j++){
-			type = klass->instvars->items.pVar[j]->dtype;
-			value = object->objValues[j];
-			field = row[k];
-			k ++;
-			if( field == NULL ) continue;
-			if( value == NULL || value->type != type->tid ){
-				DaoValue_Move( type->value, & object->objValues[j], type );
-				value = object->objValues[j];
-			}
-			switch( type->tid ){
-				case DAO_INTEGER :
-					value->xInteger.value = strtol( field, NULL, 10 );
-					break;
-				case DAO_FLOAT   :
-					value->xFloat.value = strtod( field, NULL );
-					break;
-				case DAO_DOUBLE  :
-					value->xDouble.value = strtod( field, NULL );
-					break;
-				case DAO_STRING  :
-					DString_SetBytes( value->xString.data, field, lens[k-1] );
-					break;
-				default : break;
-			}
-		}
-	}
-#else
+	daoint i, j, m, k = 0, rc = 0;
+	daoint pitch, offset;
+
 	if( mysql_stmt_field_count( handle->stmt ) ){
 		if( mysql_stmt_bind_result( handle->stmt, handle->resbind ) ) goto RaiseException;
 		rc = mysql_stmt_fetch( handle->stmt );
 		if( rc > 0 && rc != MYSQL_NO_DATA && rc != MYSQL_DATA_TRUNCATED ) goto RaiseException;
-		if( rc == MYSQL_NO_DATA ){
-			*res = 0;
-			return;
-		}
+		if( rc == MYSQL_NO_DATA ) return 0;
 	}else{
-		*res = 0;
-		return;
+		return 0;
 	}
 	for(i=1; i<N; i++){
-		if( p[i]->type != DAO_OBJECT ) goto RaiseException2;
 		object = (DaoObject*) p[i];
 		klass = object->defClass;
-		if( klass != handle->base.classList->items.pClass[i-1] ) goto RaiseException2;
 		m = handle->base.countList->items.pInt[i-1];
 		for(j=1; j<m; j++){
 			type = klass->instvars->items.pVar[j]->dtype;
@@ -423,60 +378,87 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 				value = object->objValues[j];
 			}
 			switch( type->tid ){
-				case DAO_INTEGER :
-					handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
-					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					value->xInteger.value =  *(int*)handle->base.resdata[0]->mbs;
-					break;
-				case DAO_FLOAT   :
-					handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
-					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					value->xFloat.value =  *(double*)handle->base.resdata[0]->mbs;
-					break;
-				case DAO_DOUBLE  :
-					handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
-					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					value->xDouble.value =  *(double*)handle->base.resdata[0]->mbs;
-					break;
-				case DAO_STRING  :
-					handle->resbind[0].buffer_type = MYSQL_TYPE_STRING;
-					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					pitch = handle->base.reslen >= MAX_DATA_SIZE ? MAX_DATA_SIZE : handle->base.reslen;
-					DString_Clear( value->xString.data );
+			case DAO_INTEGER :
+				handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
+				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+				value->xInteger.value =  *(int*)handle->base.resdata[0]->mbs;
+				break;
+			case DAO_FLOAT   :
+				handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
+				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+				value->xFloat.value =  *(double*)handle->base.resdata[0]->mbs;
+				break;
+			case DAO_DOUBLE  :
+				handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
+				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+				value->xDouble.value =  *(double*)handle->base.resdata[0]->mbs;
+				break;
+			case DAO_STRING  :
+				handle->resbind[0].buffer_type = MYSQL_TYPE_STRING;
+				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+				pitch = handle->base.reslen >= MAX_DATA_SIZE ? MAX_DATA_SIZE : handle->base.reslen;
+				DString_Clear( value->xString.data );
+				DString_AppendDataMBS( value->xString.data, handle->base.resdata[0]->mbs, pitch );
+				offset = MAX_DATA_SIZE;
+				while( offset < handle->base.reslen ){
+					rc = mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, offset );
+					pitch = offset;
+					offset += MAX_DATA_SIZE;
+					pitch = handle->base.reslen >= offset ? MAX_DATA_SIZE : handle->base.reslen - pitch;
 					DString_AppendDataMBS( value->xString.data, handle->base.resdata[0]->mbs, pitch );
-					offset = MAX_DATA_SIZE;
-					while( offset < handle->base.reslen ){
-						rc = mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, offset );
-						pitch = offset;
-						offset += MAX_DATA_SIZE;
-						pitch = handle->base.reslen >= offset ? MAX_DATA_SIZE : handle->base.reslen - pitch;
-						DString_AppendDataMBS( value->xString.data, handle->base.resdata[0]->mbs, pitch );
-					}
-					break;
-				default : break;
+				}
+				break;
+			default : break;
 			}
 			k ++;
 		}
 	}
-#endif
-	return;
+	return 1;
 RaiseException :
 	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
-	*res = 0;
-	return;
-RaiseException2 :
-	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
-	*res = 0;
+	return 0;
+}
+static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoObject *object;
+	DaoClass  *klass;
+	DaoType *type;
+	DaoValue *value;
+	char *field;
+	unsigned long *lens;
+	DaoVmCode *sect = DaoGetSectionCode( proc->activeCode );
+	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
+	daoint *res = DaoProcess_PutInteger( proc, 0 );
+	int i, j, k = 0, rc = 0;
+	int pitch, offset;
+	int entry;
+
+	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
+
+	if( sect == NULL ) return;
+	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
+	entry = proc->topFrame->entry;
+	DaoProcess_AcquireCV( proc );
+
+	while(1){
+		if( DaoMySQLHD_Retrieve( proc, p, N ) == 0 ) break;
+
+		proc->topFrame->entry = entry;
+		DaoProcess_Execute( proc );
+		if( proc->status == DAO_PROCESS_ABORTED ) break;
+		*res += 1;
+		value = proc->stackValues[0];
+		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
+	}
+
+	DaoProcess_ReleaseCV( proc );
+	DaoProcess_PopFrame( proc );
 }
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
-	DaoMySQLHD_Query( proc, p, N );
-	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
-}
-static void DaoMySQLHD_Done( DaoProcess *proc, DaoValue *p[], int N )
-{
-	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
+	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
+	DaoMySQLHD_Retrieve( proc, p, N );
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
 

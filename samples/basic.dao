@@ -30,7 +30,7 @@ io.writeln( std.about(h) )
 
 io.writeln( gene.id, gene.name, gene.seq );
 # query and store the result into 'gene' object:
-while( h.Query( gene ) ){
+h.Query( gene ){
 	io.writeln( gene.id, gene.name, gene.seq );
-#	break;
+	return $continue;
 }

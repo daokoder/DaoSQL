@@ -71,15 +71,13 @@ static void DaoSQLiteHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoSQLiteHD_Done( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
 	{ DaoSQLiteHD_Insert, "Insert( self :SQLHandle<SQLite>, object ) => int" },
 	{ DaoSQLiteHD_Bind,   "Bind( self :SQLHandle<SQLite>, value, index=0 )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) => int" },
+	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [=>enum<continue,done>] => int" },
 	{ DaoSQLiteHD_QueryOnce, "QueryOnce( self :SQLHandle<SQLite>, ... ) => int" },
-	{ DaoSQLiteHD_Done, "Done( self :SQLHandle<SQLite> )" },
 	{ NULL, NULL }
 };
 
@@ -297,38 +295,43 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	if( k ) DaoProcess_RaiseException( proc, DAO_ERROR, sqlite3_errmsg( db ) );
 }
-static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
+static int DaoSQLiteHD_TryPrepare( DaoProcess *proc, DaoValue *p[], int N )
 {
+	int i;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+
+	if( handle->base.prepared ==0 ){
+		DString *sql = handle->base.sqlSource;
+		if( sqlite3_prepare_v2( handle->model->db, sql->mbs, sql->size, & handle->stmt, NULL ) ){
+			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
+			return 0;
+		}
+		handle->base.prepared = 1;
+		handle->base.executed = 0;
+	}
+
+	for(i=1; i<N; i++){
+		if( p[i]->type == DAO_OBJECT ){
+			if( p[i]->xObject.defClass == handle->base.classList->items.pClass[i-1] ) continue;
+		}
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
+		return 0;
+	}
+	return 1;
+}
+static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
+{
+	daoint i, j, k, m, count;
+	const unsigned char *txt;
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
 	DaoObject *object;
 	DaoClass  *klass;
 	DaoType *type;
 	DaoValue *value;
-	daoint *res = DaoProcess_PutInteger( proc, 1 );
-	const unsigned char *txt;
-	int i, j, k = 0;
-	int m, count;
-	if( handle->base.prepared ==0 ){
-		DString *sql = handle->base.sqlSource;
-		if( sqlite3_prepare_v2( handle->model->db, sql->mbs, sql->size, & handle->stmt, NULL ) ) goto RaiseException;
-		handle->base.prepared = 1;
-		handle->base.executed = 0;
-	}
-	k = sqlite3_step( handle->stmt );
-	handle->base.executed = 1;
-	if( k > SQLITE_OK && k < SQLITE_ROW ) goto RaiseException;
-	*res = (k == SQLITE_ROW) || (k == SQLITE_DONE);
 
-	if( sqlite3_data_count( handle->stmt ) ==0 ){
-		*res = 0;
-		return;
-	}
-	k = 0;
-	for(i=1; i<N; i++){
-		if( p[i]->type != DAO_OBJECT ) goto RaiseException2;
+	for(i=1,k=0; i<N; i++){
 		object = (DaoObject*) p[i];
 		klass = object->defClass;
-		if( klass != handle->base.classList->items.pClass[i-1] ) goto RaiseException2;
 		m = handle->base.countList->items.pInt[i-1];
 		for(j=1; j<m; j++){
 			type = klass->instvars->items.pVar[j]->dtype;
@@ -362,25 +365,64 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 			k ++;
 		}
 	}
-	return;
-RaiseException :
-	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
-	*res = 0;
-	return;
-RaiseException2 :
-	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
-	*res = 0;
+}
+static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoObject *object;
+	DaoClass  *klass;
+	DaoType *type;
+	DaoValue *value;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+	DaoVmCode *sect = DaoGetSectionCode( proc->activeCode );
+	daoint *res = DaoProcess_PutInteger( proc, 0 );
+	const unsigned char *txt;
+	daoint i, j, k = 0;
+	daoint m, count, entry;
+
+	if( DaoSQLiteHD_TryPrepare( proc, p, N ) == 0 ) return;
+
+	if( sect == NULL ) return;
+	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
+	entry = proc->topFrame->entry;
+	DaoProcess_AcquireCV( proc );
+
+	while(1){
+		k = sqlite3_step( handle->stmt );
+		handle->base.executed = 1;
+		if( k > SQLITE_OK && k < SQLITE_ROW ){
+			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
+			break;
+		}
+		if( sqlite3_data_count( handle->stmt ) ==0 ) break;
+
+		DaoSQLiteHD_Retrieve( proc, p, N );
+
+		proc->topFrame->entry = entry;
+		DaoProcess_Execute( proc );
+		if( proc->status == DAO_PROCESS_ABORTED ) break;
+		*res += 1;
+		value = proc->stackValues[0];
+		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
+	}
+
+	DaoProcess_ReleaseCV( proc );
+	DaoProcess_PopFrame( proc );
+	sqlite3_reset( handle->stmt );
 }
 static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
-	DaoSQLiteHD_Query( proc, p, N );
-	if( handle->base.executed ) sqlite3_reset( handle->stmt );
-}
-static void DaoSQLiteHD_Done( DaoProcess *proc, DaoValue *p[], int N )
-{
-	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
-	if( handle->base.executed ) sqlite3_reset( handle->stmt );
+	int k;
+
+	if( DaoSQLiteHD_TryPrepare( proc, p, N ) == 0 ) return;
+
+	k = sqlite3_step( handle->stmt );
+	if( k > SQLITE_OK && k < SQLITE_ROW ){
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
+	}else if( sqlite3_data_count( handle->stmt ) ){
+		DaoSQLiteHD_Query( proc, p, N );
+	}
+	sqlite3_reset( handle->stmt );
 }
 
 int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )

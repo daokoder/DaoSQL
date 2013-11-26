@@ -112,7 +112,6 @@ static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoPostgreSQLHD_Done( DaoProcess *proc, DaoValue *p[], int N );
 
 static void DaoPostgreSQLHD_HStoreSet( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_HStoreDelete( DaoProcess *proc, DaoValue *p[], int N );
@@ -124,7 +123,6 @@ static DaoFuncItem handleMeths[]=
 	{ DaoPostgreSQLHD_Bind, "Bind( self :SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
 	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [=>enum<continue,done>] => int" },
 	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self :SQLHandle<PostgreSQL>, ... ) => int" },
-	{ DaoPostgreSQLHD_Done,  "Done( self :SQLHandle<PostgreSQL> )" },
 
 	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
 	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self :SQLHandle<PostgreSQL>, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
@@ -414,19 +412,19 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		}
 		handle->base.prepared = 1;
 	}
-	handle->base.executed = 0;
 	if( index >= MAX_PARAM_COUNT ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 		return;
 	}
 	DaoPostgreSQLHD_BindValue( handle, value, index );
 }
-static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int status )
+static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int status[2] )
 {
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
 	DaoPostgreSQLDB *model = handle->model;
+	int i, ret;
 
-	printf( "%s\n", handle->base.sqlSource->mbs );
+	//printf( "%s\n", handle->base.sqlSource->mbs );
 
 	if( handle->base.prepared ==0 ){
 		DaoPostgreSQLDB *db = handle->model;
@@ -438,28 +436,30 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 			return 0;
 		}
 		handle->base.prepared = 1;
-		handle->base.executed = 0;
 	}
-	if( handle->base.executed ==0 ){
-		if( handle->res ) PQclear( handle->res );
-		handle->res = PQexecPrepared( model->conn, handle->name->mbs, handle->base.paramCount,
-				handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
-		if( PQresultStatus( handle->res ) != status ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
-			return 0;
+	if( handle->res ) PQclear( handle->res );
+	handle->res = PQexecPrepared( model->conn, handle->name->mbs, handle->base.paramCount,
+			handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
+	ret = PQresultStatus( handle->res );
+	if( ret != status[0] && ret != status[1] ){
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
+		return 0;
+	}
+	for(i=1; i<N; i++){
+		if( p[i]->type == DAO_OBJECT ){
+			if( p[i]->xObject.defClass == handle->base.classList->items.pClass[i-1] ) continue;
 		}
-		handle->base.executed = 1;
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
+		return 0;
 	}
-	return 1;
+	return ret;
 }
-static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
+static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, daoint row )
 {
 	char *pdata;
 	uint32_t ivalue32;
 	uint64_t ivalue64;
-	daoint i, j, k, m, entry, row, len;
-	daoint *count = DaoProcess_PutInteger( proc, 0 );
-	DaoVmCode *sect = DaoGetSectionCode( proc->activeCode );
+	daoint i, j, k, m, len;
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
 	DaoPostgreSQLDB *model = handle->model;
 	DaoObject *object;
@@ -469,15 +469,64 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoMap *keyvalues;
 	DNode *it;
 
-	if( DaoPostgreSQLHD_Execute( proc, p, N, PGRES_TUPLES_OK ) == 0 ) return;
-
-	for(i=1; i<N; i++){
-		if( p[i]->type == DAO_OBJECT ){
-			if( p[i]->xObject.defClass == handle->base.classList->items.pClass[i-1] ) continue;
+	for(i=1,k=0; i<N; i++){
+		object = (DaoObject*) p[i];
+		klass = object->defClass;
+		for(j=1, m = handle->base.countList->items.pInt[i-1]; j<m; j++){
+			type = klass->instvars->items.pVar[j]->dtype;
+			value = object->objValues[j];
+			pdata = PQgetvalue( handle->res, row, k++ );
+			if( pdata == NULL ) continue;
+			if( value == NULL || value->type != type->tid ){
+				DaoValue_Move( type->value, & object->objValues[j], type );
+				value = object->objValues[j];
+			}
+			switch( type->tid ){
+			case DAO_INTEGER :
+				value->xInteger.value = ntohl(*((uint32_t *) pdata));
+				break;
+			case DAO_FLOAT   :
+				ivalue32 = be32toh( *(uint32_t*) pdata );
+				value->xFloat.value = *(float*) & ivalue32;
+				break;
+			case DAO_DOUBLE  :
+				ivalue64 = be64toh( *(uint64_t*) pdata );
+				value->xDouble.value = *(double*) & ivalue64;
+				break;
+			case DAO_STRING  :
+				len = PQgetlength( handle->res, row, k-1 );
+				DString_SetDataMBS( value->xString.data, pdata, len );
+				break;
+			case DAO_MAP :
+				k --;
+				keyvalues = (DaoMap*) value;
+				for(it=DaoMap_First(keyvalues); it; it=DaoMap_Next(keyvalues,it)){
+					pdata = PQgetvalue( handle->res, row, k++ );
+					if( pdata == NULL ) continue;
+					len = PQgetlength( handle->res, row, k-1 );
+					DString_SetDataMBS( it->value.pValue->xString.data, pdata, len );
+				}
+				break;
+			default : break;
+			}
 		}
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
-		return;
 	}
+}
+
+static int status_ok[2] = { PGRES_COMMAND_OK, PGRES_TUPLES_OK };
+
+static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
+{
+	daoint i, j, k, m, entry, row;
+	daoint *count = DaoProcess_PutInteger( proc, 0 );
+	DaoVmCode *sect = DaoGetSectionCode( proc->activeCode );
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = handle->model;
+	DaoObject *object;
+	DaoClass  *klass;
+	DaoValue *value;
+
+	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
 
 	if( sect == NULL ) return;
 	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
@@ -485,52 +534,12 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_AcquireCV( proc );
 	for(row=0; row < PQntuples( handle->res ); ++row){
 
-		for(i=1,k=0; i<N; i++){
-			object = (DaoObject*) p[i];
-			klass = object->defClass;
-			for(j=1, m = handle->base.countList->items.pInt[i-1]; j<m; j++){
-				type = klass->instvars->items.pVar[j]->dtype;
-				value = object->objValues[j];
-				pdata = PQgetvalue( handle->res, row, k++ );
-				if( pdata == NULL ) continue;
-				if( value == NULL || value->type != type->tid ){
-					DaoValue_Move( type->value, & object->objValues[j], type );
-					value = object->objValues[j];
-				}
-				switch( type->tid ){
-				case DAO_INTEGER :
-					value->xInteger.value = ntohl(*((uint32_t *) pdata));
-					break;
-				case DAO_FLOAT   :
-					ivalue32 = be32toh( *(uint32_t*) pdata );
-					value->xFloat.value = *(float*) & ivalue32;
-					break;
-				case DAO_DOUBLE  :
-					ivalue64 = be64toh( *(uint64_t*) pdata );
-					value->xDouble.value = *(double*) & ivalue64;
-					break;
-				case DAO_STRING  :
-					len = PQgetlength( handle->res, row, k-1 );
-					DString_SetDataMBS( value->xString.data, pdata, len );
-					break;
-				case DAO_MAP :
-					k --;
-					keyvalues = (DaoMap*) value;
-					for(it=DaoMap_First(keyvalues); it; it=DaoMap_Next(keyvalues,it)){
-						pdata = PQgetvalue( handle->res, row, k++ );
-						if( pdata == NULL ) continue;
-						len = PQgetlength( handle->res, row, k-1 );
-						DString_SetDataMBS( it->value.pValue->xString.data, pdata, len );
-					}
-					break;
-				default : break;
-				}
-			}
-		}
+		DaoPostgreSQLHD_Retrieve( proc, p, N, row );
 
 		proc->topFrame->entry = entry;
 		DaoProcess_Execute( proc );
 		if( proc->status == DAO_PROCESS_ABORTED ) break;
+		*count += 1;
 		value = proc->stackValues[0];
 		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
 	}
@@ -540,13 +549,8 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
-	DaoPostgreSQLHD_Execute( proc, p, N, PGRES_COMMAND_OK );
-	//if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
-}
-static void DaoPostgreSQLHD_Done( DaoProcess *proc, DaoValue *p[], int N )
-{
-	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
-	//if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
+	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
+	if( PQntuples( handle->res ) ) DaoPostgreSQLHD_Retrieve( proc, p, N, 0 );
 }
 
 
