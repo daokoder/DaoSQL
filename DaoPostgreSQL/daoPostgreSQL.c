@@ -58,7 +58,6 @@ static void DaoPostgreSQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLDB_Select( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLDB_Update( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
-static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
@@ -126,6 +125,16 @@ static void DaoPostgreSQLHD_GE( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_LT( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_LE( DaoProcess *proc, DaoValue *p[], int N );
 
+static void DaoPostgreSQLHD_EQ2( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_NE2( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_GT2( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_GE2( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_LT2( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_LE2( DaoProcess *proc, DaoValue *p[], int N );
+
+static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N );
+
 static DaoFuncItem handleMeths[]=
 {
 	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object ) => int" },
@@ -151,60 +160,78 @@ static DaoFuncItem handleMeths[]=
 	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string )=>SQLHandle<PostgreSQL>" },
 	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "Add( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "EQ( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "NE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "GT( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "GE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "LT( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "LE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "Add( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "EQ( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "NE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "GT( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "GE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "LT( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "LE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "Add( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "EQ( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "NE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "GT( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "GE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "LT( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "LE( self :SQLHandle<PostgreSQL>, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "Add( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "EQ( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "NE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "GT( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "GE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "LT( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "LE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<int>, value :int = 0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "Add( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "EQ( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "NE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "GT( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "GE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "LT( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "LE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<float>, value :float = 0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "Add( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "EQ( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "NE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "GT( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "GE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "LT( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "LE( self :SQLHandle<PostgreSQL>, table :class, field :string,  key :string, cast :type<double>, value :double = 0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
 
 	// TODO: desc, use enum symbol!
-	{ DaoPostgreSQLHD_Sort,  "Sort( self :@SQLHandle, field :string, key :string, desc=0 )=>@SQLHandle" },
-	{ DaoPostgreSQLHD_Sort,  "Sort( self :@SQLHandle, field :string, key :string, cast :type<int>|type<float>|type<double>, desc=0 )=>@SQLHandle" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, field :string, key :string, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Sort,  "Sort( self :@SQLHandle, table :class, field :string, key :string, desc=0 )=>@SQLHandle" },
-	{ DaoPostgreSQLHD_Sort,  "Sort( self :@SQLHandle, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, desc=0 )=>@SQLHandle" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
+
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
+
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
 
 	{ NULL, NULL }
 };
@@ -274,7 +301,70 @@ static void DString_AppendKeyValues( DString *self, DaoMap *keyvalues )
 		DString_AppendSQL( self, it->value.pValue->xString.data, 1, "\"" );
 	}
 }
-static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index )
+static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc );
+static void DaoValue_ToJSON( DaoValue *self, DString *json, DaoProcess *proc )
+{
+	char chs[100] = {0};
+	switch( self->type ){
+	case DAO_NONE :
+		DString_AppendMBS( json, "null" );
+		break;
+	case DAO_INTEGER :
+		sprintf( chs, "%" DAO_INT_FORMAT, self->xInteger.value );
+		DString_AppendMBS( json, chs );
+		break;
+	case DAO_FLOAT :
+		sprintf( chs, "%g", self->xFloat.value );
+		DString_AppendMBS( json, chs );
+		break;
+	case DAO_DOUBLE :
+		sprintf( chs, "%g", self->xDouble.value );
+		DString_AppendMBS( json, chs );
+		break;
+	case DAO_STRING :
+		DString_AppendSQL( json, self->xString.data, 1, "\"" );
+		break;
+	case DAO_TUPLE :
+		DaoTuple_ToJSON( (DaoTuple*) self, json, proc );
+		break;
+	default :
+		DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+		break;
+	}
+}
+static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
+{
+	DaoType *type = self->unitype;
+	DArray *id2name = NULL;
+	DNode *it;
+	int i;
+
+	if( type->mapNames != NULL && type->mapNames->size != self->size ){
+		DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+		return;
+	}
+	if( type->mapNames ){
+		id2name = DArray_New(0);
+		for(it=DMap_First(type->mapNames); it; it=DMap_Next(type->mapNames,it)){
+			DArray_Append( id2name, it->key.pVoid );
+		}
+	}
+	DString_AppendChar( json, '{' );
+	for(i=0; i<self->size; ++i){
+		if( i ) DString_AppendChar( json, ',' );
+		if( id2name ){
+			DString_AppendSQL( json, id2name->items.pString[i], 1, "\"" );
+			DString_AppendChar( json, ':' );
+		}
+		DaoValue_ToJSON( self->items[i], json, proc );
+	}
+	DString_AppendChar( json, '}' );
+	if( id2name ) DArray_Delete( id2name );
+
+	//printf( "%s\n", json->mbs );
+	//DString_SetMBS( json, "{ \"name\": \"Firefox\" }" );
+}
+static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index, DaoProcess *proc )
 {
 	DString *mbstring;
 
@@ -316,6 +406,13 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		self->paramValues[index] = mbstring->mbs;
 		self->paramLengths[index] = mbstring->size;
 		break;
+	case DAO_TUPLE :
+		mbstring = self->base.pardata[index];
+		DString_Reset( mbstring, 0 );
+		DaoTuple_ToJSON( (DaoTuple*) value, mbstring, proc );
+		self->paramValues[index] = mbstring->mbs;
+		self->paramLengths[index] = mbstring->size;
+		break;
 	default : break;
 	}
 }
@@ -330,7 +427,7 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 		char *tpname = vars[i]->dtype->name->mbs;
 		DaoValue *value = object->objValues[i];
 		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) continue;
-		DaoPostgreSQLHD_BindValue( handle, value, k++ );
+		DaoPostgreSQLHD_BindValue( handle, value, k++, proc );
 	}
 	if( handle->res ) PQclear( handle->res );
 	handle->res = PQexecPrepared( model->conn, handle->name->mbs, k, handle->paramValues,
@@ -380,6 +477,7 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			}
 			break;
 		case DAO_MAP :
+		case DAO_TUPLE :
 			self->paramTypes[k] = TEXTOID;
 			break;
 		}
@@ -396,7 +494,7 @@ static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
-	//printf( "%s\n", handle->base.sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->base.sqlSource->mbs );
 	if( p[1]->type == DAO_LIST ){
 		/* Already checked by DaoSQLHandle_PrepareInsert(): */
 		klass = p[1]->xList.items.items.pValue[0]->xObject.defClass;
@@ -480,7 +578,7 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 		return;
 	}
-	DaoPostgreSQLHD_BindValue( handle, value, index );
+	DaoPostgreSQLHD_BindValue( handle, value, index, proc );
 }
 static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int status[2] )
 {
@@ -517,6 +615,45 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 		return 0;
 	}
 	return ret;
+}
+static int DaoPostgreSQLHD_RetrieveJSON( DaoProcess *proc, DaoTuple *json, PGresult *res, daoint row, int k )
+{
+	char *pdata;
+	uint32_t ivalue32;
+	uint64_t ivalue64;
+	daoint i, j, len;
+	for(i=0; i<json->size; ++i){
+		DaoValue *item = json->items[i];
+		pdata = PQgetvalue( res, row, k++ );
+		if( pdata == NULL ) continue;
+		switch( item->type ){
+		case DAO_NONE:
+			break;
+		case DAO_INTEGER :
+			item->xInteger.value = ntohl(*((uint32_t *) pdata));
+			break;
+		case DAO_FLOAT   :
+			ivalue32 = be32toh( *(uint32_t*) pdata );
+			item->xFloat.value = *(float*) & ivalue32;
+			break;
+		case DAO_DOUBLE  :
+			ivalue64 = be64toh( *(uint64_t*) pdata );
+			item->xDouble.value = *(double*) & ivalue64;
+			break;
+		case DAO_STRING  :
+			len = PQgetlength( res, row, k-1 );
+			DString_SetDataMBS( item->xString.data, pdata, len );
+			break;
+		case DAO_TUPLE :
+			k --;
+			k = DaoPostgreSQLHD_RetrieveJSON( proc, (DaoTuple*) item, res, row, k );
+			break;
+		default :
+			DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+			return k;
+		}
+	}
+	return k;
 }
 static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, daoint row )
 {
@@ -570,6 +707,10 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 					len = PQgetlength( handle->res, row, k-1 );
 					DString_SetDataMBS( it->value.pValue->xString.data, pdata, len );
 				}
+				break;
+			case DAO_TUPLE :
+				k --;
+				k = DaoPostgreSQLHD_RetrieveJSON( proc, (DaoTuple*) value, handle->res, row, k );
 				break;
 			default : break;
 			}
@@ -698,16 +839,25 @@ static void DaoPostgreSQLHD_HStoreContain( DaoProcess *proc, DaoValue *p[], int 
 	handle->boolCount ++;
 }
 
+static void DString_AppendCastAs( DString *sql, DaoType *cast )
+{
+	DString_AppendMBS( sql, " AS " );
+	switch( cast->tid ){
+	case DAO_INTEGER : DString_AppendMBS( sql, " INTEGER) " ); break;
+	case DAO_FLOAT   : DString_AppendMBS( sql, " FLOAT) " ); break;
+	case DAO_DOUBLE  : DString_AppendMBS( sql, " DOUBLE) " ); break;
+	case DAO_STRING  : DString_AppendMBS( sql, " TEXT) " ); break;
+	}
+}
+
 static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
 	DString *fname, *tabname = NULL;
-	DaoValue *field = p[1];
-	DaoValue *key = p[2];
-	DaoType *cast = (DaoType*) p[3];
-	DaoValue *value = p[4];
-	DaoClass *klass;
-	int status = 0;
+	DaoString *field = (DaoString*) p[1];
+	DaoString *key = (DaoString*) p[2];
+	DaoType *cast = DaoValue_CastType( p[3] );
+	DaoValue *value = cast != NULL ? p[4] : p[3];
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->classList->size == 0 ){
@@ -715,41 +865,36 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 		return;
 	}
 	fname = DString_New(1);
-	klass = handle->classList->items.pClass[0];
 	if( handle->setCount ) DString_AppendMBS( handle->sqlSource, ", " );
-	DString_Assign( fname, field->xString.data );
 
 	if( p[1]->type == DAO_CLASS ){
-		field = p[2];
-		key = p[3];
-		cast = (DaoType*) p[4];
-		value = p[5];
-		klass = (DaoClass*) p[1];
+		field = (DaoString*) p[2];
+		key = (DaoString*) p[3];
+		cast = DaoValue_CastType( p[4] );
+		value = cast != NULL ? p[5] : p[4];
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 		DString_Assign( fname, tabname );
 		DString_AppendMBS( fname, "." );
-		DString_Append( fname, field->xString.data );
+		DString_Append( fname, field->data );
+	}else{
+		DString_Assign( fname, field->data );
 	}
 	DString_Append( handle->sqlSource, fname );
 	DString_AppendMBS( handle->sqlSource, "=" );
 	DString_Append( handle->sqlSource, fname );
 	DString_AppendMBS( handle->sqlSource, " || (\'" );
-	DString_AppendSQL( handle->sqlSource, key->xString.data, 1, "\"" );
+	DString_AppendSQL( handle->sqlSource, key->data, 1, "\"" );
 	DString_AppendMBS( handle->sqlSource, "=>\' || " );
-	DString_AppendMBS( handle->sqlSource, "CAST( CAST(" );
+	DString_AppendMBS( handle->sqlSource, "CAST( " );
+	if( cast ) DString_AppendMBS( handle->sqlSource, "CAST(" );
 	DString_Append( handle->sqlSource, fname );
 	DString_AppendMBS( handle->sqlSource, "->" );
-	DString_AppendSQL( handle->sqlSource, key->xString.data, 1, "\'" );
-	DString_AppendMBS( handle->sqlSource, " AS " );
-	switch( cast->tid ){
-	case DAO_INTEGER : DString_AppendMBS( handle->sqlSource, " INTEGER) " ); break;
-	case DAO_FLOAT   : DString_AppendMBS( handle->sqlSource, " FLOAT) " ); break;
-	case DAO_DOUBLE  : DString_AppendMBS( handle->sqlSource, " DOUBLE) " ); break;
-	}
+	DString_AppendSQL( handle->sqlSource, key->data, 1, "\'" );
+	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
 	DString_AppendMBS( handle->sqlSource, "+" );
 
 	if( N >2 ){
-		DString *mbstring = field->xString.data;
+		DString *mbstring = field->data;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -757,8 +902,8 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->xString.data );
-			DString_AppendSQL( handle->sqlSource, field->xString.data, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, field->data );
+			DString_AppendSQL( handle->sqlSource, field->data, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
@@ -775,44 +920,37 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 {
 	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
 	DString *mbstring, *tabname = NULL;
-	DaoValue *field = p[1];
-	DaoValue *key = p[2];
-	DaoType *cast = (DaoType*) p[3];
-	DaoValue *value = p[4];
-	DaoClass *klass;
-	int status = 0;
+	DaoString *field = (DaoString*) p[1];
+	DaoString *key = (DaoString*) p[2];
+	DaoType *cast = DaoValue_CastType( p[3] );
+	DaoValue *value = cast != NULL ? p[4] : p[3];
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->classList->size == 0 ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 		return;
 	}
-	klass = handle->classList->items.pClass[0];
 	if( handle->boolCount ) DString_AppendMBS( handle->sqlSource, " AND " );
-	DString_AppendMBS( handle->sqlSource, "CAST( " );
 
 	if( p[1]->type == DAO_CLASS ){
-		field = p[2];
-		key = p[3];
-		cast = (DaoType*) p[4];
-		value = p[5];
-		klass = (DaoClass*) p[1];
+		field = (DaoString*) p[2];
+		key = (DaoString*) p[3];
+		cast = DaoValue_CastType( p[4] );
+		value = cast != NULL ? p[5] : p[4];
+	}
+	if( cast ) DString_AppendMBS( handle->sqlSource, "CAST( " );
+	if( p[1]->type == DAO_CLASS ){
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 		DString_Append( handle->sqlSource, tabname );
 		DString_AppendMBS( handle->sqlSource, "." );
 	}
-	DString_Append( handle->sqlSource, field->xString.data );
+	DString_Append( handle->sqlSource, field->data );
 	DString_AppendMBS( handle->sqlSource, "->" );
-	DString_AppendSQL( handle->sqlSource, key->xString.data, 1, "\'" );
-	DString_AppendMBS( handle->sqlSource, " AS " );
-	switch( cast->tid ){
-	case DAO_INTEGER : DString_AppendMBS( handle->sqlSource, " INTEGER) " ); break;
-	case DAO_FLOAT   : DString_AppendMBS( handle->sqlSource, " FLOAT) " ); break;
-	case DAO_DOUBLE  : DString_AppendMBS( handle->sqlSource, " DOUBLE) " ); break;
-	}
+	DString_AppendSQL( handle->sqlSource, key->data, 1, "\'" );
+	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
 	DString_AppendMBS( handle->sqlSource, op );
 	if( N >2 ){
-		DString *mbstring = field->xString.data;
+		DString *mbstring = field->data;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -820,8 +958,8 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->xString.data );
-			DString_AppendSQL( handle->sqlSource, field->xString.data, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, field->data );
+			DString_AppendSQL( handle->sqlSource, field->data, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
@@ -857,6 +995,106 @@ static void DaoPostgreSQLHD_LE( DaoProcess *proc, DaoValue *p[], int N )
 	DaoPostgreSQLHD_Operator( proc, p, N, "<=" );
 }
 
+static void DString_AppendPath( DString *self, DaoList *path )
+{
+	char chs[100] = {0};
+	int i, n;
+	for(i=0,n=DaoList_Size( path ); i<n; ++i){
+		DaoValue *item = DaoList_GetItem( path, i );
+		DString_AppendMBS( self, "->" );
+		if( i+1 == n ) DString_AppendMBS( self, ">" );
+		if( item->type == DAO_INTEGER ){
+			sprintf( chs, "%" DAO_INT_FORMAT, item->xInteger.value );
+			DString_AppendMBS( self, chs );
+		}else{
+			DString_AppendSQL( self, item->xString.data, 1, "\'" );
+		}
+	}
+}
+
+static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, char *op )
+{
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DString *mbstring, *tabname = NULL;
+	DaoString *field = (DaoString*) p[1];
+	DaoList *path = (DaoList*) p[2];
+	DaoType *cast = DaoValue_CastType( p[3] );
+	DaoValue *value = cast != NULL ? p[4] : p[3];
+
+	DaoProcess_PutValue( proc, p[0] );
+	if( handle->classList->size == 0 ){
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		return;
+	}
+	if( handle->boolCount ) DString_AppendMBS( handle->sqlSource, " AND " );
+
+	if( p[1]->type == DAO_CLASS ){
+		field = (DaoString*) p[2];
+		path = (DaoList*) p[3];
+		cast = DaoValue_CastType( p[4] );
+		value = cast != NULL ? p[5] : p[4];
+	}
+	if( cast ) DString_AppendMBS( handle->sqlSource, "CAST( " );
+	if( p[1]->type == DAO_CLASS ){
+		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
+		DString_Append( handle->sqlSource, tabname );
+		DString_AppendMBS( handle->sqlSource, "." );
+	}
+	if( DaoList_Size( path ) == 0 ){
+		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		return;
+	}
+	DString_Append( handle->sqlSource, field->data );
+	DString_AppendPath( handle->sqlSource, path );
+	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
+	DString_AppendMBS( handle->sqlSource, op );
+	if( N >2 ){
+		DString *mbstring = field->data;
+		DString_Reset( mbstring, 0 );
+		if( value->type == DAO_MAP ){
+			DString_AppendKeyValues( mbstring, (DaoMap*) value );
+			DString_AppendChar( handle->sqlSource, '\'' );
+			DString_Append( handle->sqlSource, mbstring );
+			DString_AppendChar( handle->sqlSource, '\'' );
+		}else{
+			DaoValue_GetString( value, field->data );
+			DString_AppendSQL( handle->sqlSource, field->data, value->type == DAO_STRING, "\'" );
+		}
+	}else{
+		char buf[20];
+		handle->partypes[handle->paramCount++] = cast;
+		sprintf( buf, "$%i", handle->paramCount );
+		DString_AppendMBS( handle->sqlSource, buf );
+	}
+	handle->boolCount ++;
+	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+}
+static void DaoPostgreSQLHD_EQ2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_Operator2( proc, p, N, "=" );
+}
+static void DaoPostgreSQLHD_NE2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_Operator2( proc, p, N, "!=" );
+}
+static void DaoPostgreSQLHD_GT2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_Operator2( proc, p, N, ">" );
+}
+static void DaoPostgreSQLHD_GE2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_Operator2( proc, p, N, ">=" );
+}
+static void DaoPostgreSQLHD_LT2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_Operator2( proc, p, N, "<" );
+}
+static void DaoPostgreSQLHD_LE2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLHD_Operator2( proc, p, N, "<=" );
+}
+
+
 static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
@@ -884,20 +1122,48 @@ static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N )
 	DString_Append( handle->sqlSource, field );
 	DString_AppendMBS( handle->sqlSource, "->" );
 	DString_AppendSQL( handle->sqlSource, key, 1, "\'" );
-	if( cast != NULL ){
-		DString_AppendMBS( handle->sqlSource, " AS" );
-		switch( cast->tid ){
-		case DAO_INTEGER : DString_AppendMBS( handle->sqlSource, " INTEGER) " ); break;
-		case DAO_FLOAT   : DString_AppendMBS( handle->sqlSource, " FLOAT) " ); break;
-		case DAO_DOUBLE  : DString_AppendMBS( handle->sqlSource, " DOUBLE) " ); break;
-		}
-	}
+	if( cast != NULL ) DString_AppendCastAs( handle->sqlSource, cast );
 	if( desc ){
 		DString_AppendMBS( handle->sqlSource, "DESC " );
 	}else{
 		DString_AppendMBS( handle->sqlSource, "ASC " );
 	}
-	fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+}
+
+static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DString *tabname = NULL;
+	DString *field = DaoValue_TryGetString( p[1] );
+	DaoList *path = DaoValue_CastList( p[2] );
+	DaoType *cast = DaoValue_CastType( p[3] );
+	int desc = DaoValue_TryGetInteger( cast == NULL ? p[3] : p[4] );
+
+	if( p[1]->type == DAO_CLASS ){
+		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
+		field = DaoValue_TryGetString( p[2] );
+		path = DaoValue_CastList( p[3] );
+		cast = DaoValue_CastType( p[4] );
+		desc = DaoValue_TryGetInteger( cast == NULL ? p[4] : p[5] );
+	}
+
+	DaoProcess_PutValue( proc, p[0] );
+	DString_AppendMBS( handle->sqlSource, " ORDER BY " );
+	if( cast != NULL ) DString_AppendMBS( handle->sqlSource, "CAST( " );
+	if( tabname != NULL ){
+		DString_Append( handle->sqlSource, tabname );
+		DString_AppendMBS( handle->sqlSource, "." );
+	}
+	DString_Append( handle->sqlSource, field );
+	DString_AppendPath( handle->sqlSource, path );
+	if( cast != NULL ) DString_AppendCastAs( handle->sqlSource, cast );
+	if( desc ){
+		DString_AppendMBS( handle->sqlSource, "DESC " );
+	}else{
+		DString_AppendMBS( handle->sqlSource, "ASC " );
+	}
+	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
 }
 
 

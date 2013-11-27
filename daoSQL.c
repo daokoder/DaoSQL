@@ -247,6 +247,8 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			DString_AppendMBS( sql, ")" );
 		}else if( strcmp( tpname, "HSTORE" ) == 0 ){
 			DString_AppendMBS( sql, "HSTORE" );
+		}else if( strcmp( tpname, "JSON" ) == 0 ){
+			DString_AppendMBS( sql, "JSON" );
 		}else{
 			DString_AppendMBS( sql, tpname );
 		}
@@ -321,6 +323,8 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 			DString_AppendMBS( self->sqlSource, buf );
 			if( strcmp( type->name->mbs, "HSTORE" ) == 0 ){
 				DString_AppendMBS( self->sqlSource, "::hstore" );
+			}else if( strcmp( type->name->mbs, "JSON" ) == 0 ){
+				DString_AppendMBS( self->sqlSource, "::json" );
 			}
 		}else{
 			DString_AppendMBS( self->sqlSource, "?" );
@@ -347,6 +351,86 @@ int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString_Append( self->sqlSource, tabname );
 	DString_AppendMBS( self->sqlSource, " " );
 	return 1;
+}
+static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProcess *proc, int k )
+{
+	DaoType *type = self->unitype;
+	DArray *id2name = NULL;
+	DString *path2 = NULL;
+	DNode *it;
+	char chs[100] = {0};
+	int i;
+
+	if( type->mapNames != NULL && type->mapNames->size != self->size ){
+		DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+		return 0;
+	}
+	if( type->mapNames ){
+		id2name = DArray_New(0);
+		for(it=DMap_First(type->mapNames); it; it=DMap_Next(type->mapNames,it)){
+			DArray_Append( id2name, it->key.pVoid );
+		}
+	}
+	path2 = DString_New(1);
+	for(i=0; i<self->size; ++i){
+		DaoValue *item = self->items[i];
+		DString_Assign( path2, path );
+		DString_AppendMBS( path2, "->" );
+		if( item->type != DAO_TUPLE ) DString_AppendMBS( path2, ">" );
+		if( id2name ){
+			DString_AppendSQL( path2, id2name->items.pString[i], 1, "\'" );
+		}else{
+			sprintf( chs, "%i", i+1 );
+			DString_AppendMBS( path2, chs );
+		}
+		switch( item->type ){
+		case DAO_NONE :
+			if( k ) DString_AppendChar( sql, ',' );
+			DString_Append( sql, path2 );
+			k += 1;
+			break;
+		case DAO_INTEGER :
+			if( k ) DString_AppendChar( sql, ',' );
+			DString_AppendMBS( sql, "CAST(" );
+			DString_Append( sql, path2 );
+			DString_AppendMBS( sql, " AS INTEGER)" );
+			k += 1;
+			break;
+		case DAO_FLOAT :
+			if( k ) DString_AppendChar( sql, ',' );
+			DString_AppendMBS( sql, "CAST(" );
+			DString_Append( sql, path2 );
+			DString_AppendMBS( sql, " AS FLOAT)" );
+			k += 1;
+			break;
+		case DAO_DOUBLE :
+			if( k ) DString_AppendChar( sql, ',' );
+			DString_AppendMBS( sql, "CAST(" );
+			DString_Append( sql, path2 );
+			DString_AppendMBS( sql, " AS DOUBLE)" );
+			k += 1;
+			break;
+		case DAO_STRING :
+			if( k ) DString_AppendChar( sql, ',' );
+			DString_AppendMBS( sql, "CAST(" );
+			DString_Append( sql, path2 );
+			DString_AppendMBS( sql, " AS TEXT)" );
+			k += 1;
+			break;
+		case DAO_TUPLE :
+			k = DaoTuple_ToPath( (DaoTuple*) item, path2, sql, proc, k );
+			break;
+		default :
+			DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+			break;
+		}
+	}
+	if( id2name ) DArray_Delete( id2name );
+	DString_Delete( path2 );
+
+	//printf( "%s\n", json->mbs );
+	//DString_SetMBS( json, "{ \"name\": \"Firefox\" }" );
+	return k;
 }
 int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -390,6 +474,18 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 					DString_AppendMBS( self->sqlSource, "->" );
 					DString_AppendSQL( self->sqlSource, it->key.pValue->xString.data, 1, "\'" );
 				}
+			}else if( type->tid == DAO_TUPLE && self->database->type == DAO_POSTGRESQL ){
+				DaoTuple *json = object ? (DaoTuple*) object->objValues[j] : NULL ;
+				DString *path = DString_New(1);
+				if( object == NULL ){
+				}
+				if( ntable >1 ){
+					DString_Append( path, tabname );
+					DString_AppendMBS( path, "." );
+				}
+				DString_Append( path, klass->objDataName->items.pString[j] );
+				k = DaoTuple_ToPath( json, path, self->sqlSource, proc, k );
+				DString_Delete( path );
 			}else{
 				if( k++ ) DString_AppendMBS( self->sqlSource, "," );
 				if( ntable >1 ){

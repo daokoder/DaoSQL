@@ -15,10 +15,9 @@ frame {
 	db.Query( 'CREATE EXTENSION hstore;' );
 }
 
-# create a table for class Gene
 frame {
 	defer{ recover() }
-	db.CreateTable( Product );
+	db.Query( 'DROP TABLE Product;' );
 }
 
 product = Product::{
@@ -26,18 +25,31 @@ product = Product::{
 	'Geek Love: A Novel',
 	{
 		'author' -> 'Katherine Dunn',
-		'pages'   -> '368',
+		'pages'   -> '168',
 		'publisher' -> 'unknown',
 		'category' -> 'fiction'
 	}
 };
-# insert a record into the table
-db.Insert( product );
 
-db.Update( Product ).HStoreSet( 'attributes', { 'author' -> 'Someone' } ).QueryOnce();
+frame {
+	defer{ recover() }
+	db.CreateTable( Product );
+	db.Insert( product );
+	product.attributes['author'] = 'Someone Someone'
+	product.attributes['pages'] = '268'
+	db.Insert( product );
+	product.attributes['author'] = 'Someone Someone'
+	product.attributes['pages'] = '368'
+	db.Insert( product );
+}
 
-# SELECT * FROM Gene WHERE name = 'RASE';
-h = db.Select( product ).Where().HStoreContain( 'attributes', { 'category' -> 'fiction' } );
+#db.Update( Product ).Add( 'attributes', 'pages', int, 100 ).QueryOnce();
+
+h = db.Select( product ).Where()
+	.HStoreContain( 'attributes', { 'category' -> 'fiction' } )
+	.HStoreLT( Product, 'attributes', 'pages', int, 300 )
+	.HStoreSort( Product, 'attributes', 'pages', int, 1 )
+
 io.writeln( std.about(h) )
 
 # query and store the result into 'product' object:
