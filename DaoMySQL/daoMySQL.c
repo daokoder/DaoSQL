@@ -37,7 +37,7 @@ static DaoFuncItem modelMeths[]=
 	{ DaoMySQLDB_DataModel,"SQLDatabase<MySQL>( name : string, host='', user='', pwd='' )=>SQLDatabase<MySQL>"},
 	{ DaoMySQLDB_CreateTable,  "CreateTable( self:SQLDatabase<MySQL>, klass )" },
 //	{ DaoMySQLDB_AlterTable,  "AlterTable( self:SQLDatabase<MySQL>, klass )" },
-	{ DaoMySQLDB_Insert,  "Insert( self:SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>" },
+	{ DaoMySQLDB_Insert,  "Insert( self:SQLDatabase<MySQL>, object :@T, ... :@T )=>SQLHandle<MySQL>" },
 	{ DaoMySQLDB_DeleteRow, "Delete( self:SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>"},
 	{ DaoMySQLDB_Select, "Select( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
 	{ DaoMySQLDB_Update, "Update( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
@@ -92,7 +92,7 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoMySQLHD_Insert, "Insert( self:SQLHandle<MySQL>, object ) => int" },
+	{ DaoMySQLHD_Insert, "Insert( self:SQLHandle<MySQL>, object :@T, ... :@T ) => int" },
 	{ DaoMySQLHD_Bind, "Bind( self:SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
 	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) [=>enum<continue,done>] => int" },
 	{ DaoMySQLHD_QueryOnce, "QueryOnce( self:SQLHandle<MySQL>, ... ) => int" },
@@ -214,7 +214,6 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DaoMySQLHD *handle = DaoMySQLHD_New( model );
-	DaoObject *object = (DaoObject*) p[1];
 	DString *str = handle->base.sqlSource;
 	int i;
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
@@ -224,12 +223,7 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
 		return;
 	}
-	if( p[1]->type == DAO_LIST ){
-		for( i=0; i<p[1]->xList.items.size; i++ )
-			DaoMySQLDB_InsertObject( proc, handle, p[1]->xList.items.items.pObject[i] );
-	}else{
-		DaoMySQLDB_InsertObject( proc, handle, object );
-	}
+	for(i=1; i<N; ++i) DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
 }
 static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -259,21 +253,14 @@ static void DaoMySQLDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoMySQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
-	DaoValue *value;
 	int i;
 	DaoProcess_PutValue( proc, p[0] );
-	if( p[1]->type == DAO_OBJECT ){
-		DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[1] );
-	}else if( p[1]->type == DAO_LIST ){
-		for(i=0; i<p[1]->xList.items.size; i++){
-			value = p[1]->xList.items.items.pValue[i];
-			if( value->type != DAO_OBJECT 
-					|| value->xObject.defClass != handle->base.classList->items.pClass[0] ){
-				DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
-				return;
-			}
-			DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) value );
+	for(i=1; i<N; ++i){
+		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
+			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			return;
 		}
+		DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
 	}
 }
 static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
@@ -457,8 +444,9 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
+	daoint *res = DaoProcess_PutInteger( proc, 0 );
 	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
-	DaoMySQLHD_Retrieve( proc, p, N );
+	*res = DaoMySQLHD_Retrieve( proc, p, N );
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
 

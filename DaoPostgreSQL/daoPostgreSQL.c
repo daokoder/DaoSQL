@@ -64,7 +64,7 @@ static DaoFuncItem modelMeths[]=
 	{ DaoPostgreSQLDB_DataModel,"SQLDatabase<PostgreSQL>( name : string, host='', user='', pwd='' )=>SQLDatabase<PostgreSQL>"},
 	{ DaoPostgreSQLDB_CreateTable,  "CreateTable( self:SQLDatabase<PostgreSQL>, klass )" },
 //	{ DaoPostgreSQLDB_AlterTable,  "AlterTable( self:SQLDatabase<PostgreSQL>, klass )" },
-	{ DaoPostgreSQLDB_Insert,  "Insert( self:SQLDatabase<PostgreSQL>, object )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLDB_Insert,  "Insert( self:SQLDatabase<PostgreSQL>, object :@T, ... :@T )=>SQLHandle<PostgreSQL>" },
 	{ DaoPostgreSQLDB_DeleteRow, "Delete( self:SQLDatabase<PostgreSQL>, object )=>SQLHandle<PostgreSQL>"},
 	{ DaoPostgreSQLDB_Select, "Select( self:SQLDatabase<PostgreSQL>, object,...)=>SQLHandle<PostgreSQL>"},
 	{ DaoPostgreSQLDB_Update, "Update( self:SQLDatabase<PostgreSQL>, object,...)=>SQLHandle<PostgreSQL>"},
@@ -137,7 +137,7 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object ) => int" },
+	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object :@T, ... :@T ) => int" },
 	{ DaoPostgreSQLHD_Bind, "Bind( self :SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
 	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [=>enum<continue,done>] => int" },
 	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self :SQLHandle<PostgreSQL>, ... ) => int" },
@@ -487,30 +487,19 @@ static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
 	DaoPostgreSQLHD *handle = DaoPostgreSQLHD_New( model );
-	DaoObject *object = (DaoObject*) p[1];
-	DaoClass *klass = object->defClass;
 	DString *str = handle->base.sqlSource;
 	int i;
 
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//fprintf( stderr, "%s\n", handle->base.sqlSource->mbs );
-	if( p[1]->type == DAO_LIST ){
-		/* Already checked by DaoSQLHandle_PrepareInsert(): */
-		klass = p[1]->xList.items.items.pValue[0]->xObject.defClass;
-	}
 	DaoPostgreSQLHD_PrepareBindings( handle );
 	handle->res = PQprepare( model->conn, handle->name->mbs, str->mbs, handle->base.paramCount, handle->paramTypes );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
 		return;
 	}
-	if( p[1]->type == DAO_LIST ){
-		for( i=0; i<p[1]->xList.items.size; i++ )
-			DaoPostgreSQLDB_InsertObject( proc, handle, p[1]->xList.items.items.pObject[i] );
-	}else{
-		DaoPostgreSQLDB_InsertObject( proc, handle, object );
-	}
+	for(i=1; i<N; ++i) DaoPostgreSQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
 }
 static void DaoPostgreSQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -543,18 +532,12 @@ static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoValue *value;
 	int i;
 	DaoProcess_PutValue( proc, p[0] );
-	if( p[1]->type == DAO_OBJECT ){
-		DaoPostgreSQLDB_InsertObject( proc, handle, (DaoObject*) p[1] );
-	}else if( p[1]->type == DAO_LIST ){
-		for(i=0; i<p[1]->xList.items.size; i++){
-			value = p[1]->xList.items.items.pValue[i];
-			if( value->type != DAO_OBJECT 
-					|| value->xObject.defClass != handle->base.classList->items.pClass[0] ){
-				DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
-				return;
-			}
-			DaoPostgreSQLDB_InsertObject( proc, handle, (DaoObject*) value );
+	for(i=1; i<N; ++i){
+		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
+			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			return;
 		}
+		DaoPostgreSQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
 	}
 }
 static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
@@ -754,8 +737,12 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	daoint *res = DaoProcess_PutInteger( proc, 0 );
 	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
-	if( PQntuples( handle->res ) ) DaoPostgreSQLHD_Retrieve( proc, p, N, 0 );
+	if( PQntuples( handle->res ) ){
+		DaoPostgreSQLHD_Retrieve( proc, p, N, 0 );
+		*res = 1;
+	}
 }
 
 

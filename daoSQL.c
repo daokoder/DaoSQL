@@ -271,30 +271,16 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString *tabname = NULL;
 	char buf[20];
 	int i, k;
-	if( p[1]->type != DAO_LIST && p[1]->type != DAO_OBJECT ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
-		return 0;
-	}
-	if( p[1]->type == DAO_LIST ){
-		if( p[1]->xList.items.size ==0 ) return 0;
-		for( i=0; i<p[1]->xList.items.size; i++ ){
-			if( p[1]->xList.items.items.pValue[i]->type != DAO_OBJECT ){
-				DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
-				return 0;
-			}
+
+	for(i=1; i<N; ++i){
+		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
+			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			return 0;
 		}
-		klass = p[1]->xList.items.items.pValue[0]->xObject.defClass;
-		for( i=0; i<p[1]->xList.items.size; i++ ){
-			if( p[1]->xList.items.items.pValue[i]->type != DAO_OBJECT
-					|| p[1]->xList.items.items.pValue[0]->xObject.defClass != klass ){
-				DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
-				return 0;
-			}
-		}
-	}else{
 		object = (DaoObject*) p[1];
 		klass = object->defClass;
 	}
+
 	tabname = DaoSQLDatabase_TableName( klass );
 	DArray_PushBack( self->classList, klass );
 	DString_AppendMBS( self->sqlSource, "INSERT INTO " );

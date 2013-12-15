@@ -19,7 +19,7 @@ frame {
 
 event1 = Event::{
 	'pageview', '1',
-	( page => "/", ),
+	( page => "/" , #{ extra comma for single-item tuple #} ),
 	( name => "Chrome", os => "Mac", resolution => (x => 1440, y => 900) )
 }
 event2 = Event::{
@@ -57,12 +57,7 @@ frame {
 frame {
 	defer{ recover() }
 	db.CreateTable( Event );
-	db.Insert( event1 );
-	db.Insert( event2 );
-	db.Insert( event3 );
-	db.Insert( event4 );
-	db.Insert( event5 );
-	db.Insert( event6 );
+	db.Insert( event1, event2, event3, event4, event5, event6 );
 }
 
 h = db.Select( event1 ).Where()

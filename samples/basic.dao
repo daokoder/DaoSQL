@@ -22,7 +22,7 @@ frame {
 gene = Gene::{ 0, 'RAS', '...AATCCGG...' };
 gene2 = Gene::{ 0, 'RAS2', '...AATCCGCCC...' };
 # insert a record into the table
-db.Insert( { gene, gene2 } );
+db.Insert( gene, gene2 );
 
 # SELECT * FROM Gene WHERE name = 'RASE';
 h = db.Select( Gene ).Where().EQ( 'name', 'RAS2' );
