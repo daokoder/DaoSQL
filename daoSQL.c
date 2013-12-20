@@ -340,7 +340,7 @@ int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 }
 static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProcess *proc, int k )
 {
-	DaoType *type = self->unitype;
+	DaoType *type = self->ctype;
 	DArray *id2name = NULL;
 	DString *path2 = NULL;
 	DNode *it;

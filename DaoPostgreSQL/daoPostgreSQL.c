@@ -334,7 +334,7 @@ static void DaoValue_ToJSON( DaoValue *self, DString *json, DaoProcess *proc )
 }
 static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 {
-	DaoType *type = self->unitype;
+	DaoType *type = self->ctype;
 	DArray *id2name = NULL;
 	DNode *it;
 	int i;
