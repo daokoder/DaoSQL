@@ -139,7 +139,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object :@T, ... :@T ) => int" },
 	{ DaoPostgreSQLHD_Bind, "Bind( self :SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [=>enum<continue,done>] => int" },
+	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [] => int" },
 	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self :SQLHandle<PostgreSQL>, ... ) => int" },
 
 	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },

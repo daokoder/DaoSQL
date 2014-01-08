@@ -94,7 +94,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoMySQLHD_Insert, "Insert( self:SQLHandle<MySQL>, object :@T, ... :@T ) => int" },
 	{ DaoMySQLHD_Bind, "Bind( self:SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
-	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) [=>enum<continue,done>] => int" },
+	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) [] => int" },
 	{ DaoMySQLHD_QueryOnce, "QueryOnce( self:SQLHandle<MySQL>, ... ) => int" },
 	{ NULL, NULL }
 };

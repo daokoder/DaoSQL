@@ -76,7 +76,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoSQLiteHD_Insert, "Insert( self :SQLHandle<SQLite>, object :@T, ... :@T ) => int" },
 	{ DaoSQLiteHD_Bind,   "Bind( self :SQLHandle<SQLite>, value, index=0 )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [=>enum<continue,done>] => int" },
+	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [] => int" },
 	{ DaoSQLiteHD_QueryOnce, "QueryOnce( self :SQLHandle<SQLite>, ... ) => int" },
 	{ NULL, NULL }
 };
