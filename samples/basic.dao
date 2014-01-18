@@ -1,5 +1,5 @@
-#load DaoMySQL;
-load DaoSQLite;
+#load mysql;
+load sqlite;
 
 # class that can be mapped to a database table
 class Gene

@@ -416,7 +416,7 @@ static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 
 int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
-	DaoVmSpace_LinkModule( vms, ns, "DaoSQL" );
+	DaoVmSpace_LinkModule( vms, ns, "sql" );
 	DaoNamespace_TypeDefine( ns, "int", "SQLite" );
 	dao_type_sqlite3_database = DaoNamespace_WrapType( ns, & DaoSQLiteDB_Typer, 1 );
 	dao_type_sqlite3_handle = DaoNamespace_WrapType( ns, & DaoSQLiteHD_Typer, 1 );

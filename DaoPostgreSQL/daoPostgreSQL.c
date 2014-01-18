@@ -1156,7 +1156,7 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 
 int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
-	DaoVmSpace_LinkModule( vms, ns, "DaoSQL" );
+	DaoVmSpace_LinkModule( vms, ns, "sql" );
 	DaoNamespace_TypeDefine( ns, "int", "PostgreSQL" );
 	DaoNamespace_TypeDefine( ns, "map<string,string>", "HSTORE" );
 	DaoNamespace_TypeDefine( ns, "tuple<...>", "JSON" );
