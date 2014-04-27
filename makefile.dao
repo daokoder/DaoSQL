@@ -13,7 +13,7 @@ project.UseImportLibrary( daovm, "dao" )
 project.AddIncludePath( "." )
 project.AddIncludePath( "../../kernel" )
 
-if( DaoMake::IsMacOSX() ) project.AddDefinition( "__BSD__" )
+if( DaoMake::IsPlatform( "MACOSX" ) ) project.AddDefinition( "__BSD__" )
 
 daosql_objs = project.AddObjects( { "daoSQL.c" }, { "daoSQL.h" } )
 daosql_dll = project.AddSharedLibrary( "dao_sql", daosql_objs )
