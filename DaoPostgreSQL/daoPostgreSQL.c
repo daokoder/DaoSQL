@@ -89,7 +89,7 @@ DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 	self->res = NULL;
 	self->name = DString_New(1);
 	sprintf( buf, "PQ_STMT_%p", self );
-	DString_SetMBS( self->name, buf );
+	DString_SetChars( self->name, buf );
 	return self;
 }
 void DaoPostgreSQLHD_Delete( DaoPostgreSQLHD *self )
@@ -246,18 +246,14 @@ static DaoType *dao_type_postgresql_handle = NULL;
 static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLDB *model = DaoPostgreSQLDB_New();
-	DString_Assign( model->base.name, p[0]->xString.data );
-	if( N >1 ) DString_Assign( model->base.host, p[1]->xString.data );
-	if( N >2 ) DString_Assign( model->base.user, p[2]->xString.data );
-	if( N >3 ) DString_Assign( model->base.password, p[3]->xString.data );
-	DString_ToMBS( model->base.name );
-	DString_ToMBS( model->base.host );
-	DString_ToMBS( model->base.user );
-	DString_ToMBS( model->base.password );
+	DString_Assign( model->base.name, p[0]->xString.value );
+	if( N >1 ) DString_Assign( model->base.host, p[1]->xString.value );
+	if( N >2 ) DString_Assign( model->base.user, p[2]->xString.value );
+	if( N >3 ) DString_Assign( model->base.password, p[3]->xString.value );
 	DaoProcess_PutCdata( proc, model, dao_type_postgresql_database );
 	// TODO: port!
-	model->conn = PQsetdbLogin( model->base.host->mbs, NULL, NULL, NULL,
-			model->base.name->mbs, model->base.user->mbs, model->base.password->mbs );
+	model->conn = PQsetdbLogin( model->base.host->bytes, NULL, NULL, NULL,
+			model->base.name->bytes, model->base.user->bytes, model->base.password->bytes );
 	if( PQstatus( model->conn ) != CONNECTION_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR, PQerrorMessage( model->conn ) );
 		PQfinish( model->conn );
@@ -272,7 +268,7 @@ static void DaoPostgreSQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N 
 	DString *sql = DString_New(1);
 	PGresult *res;
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
-	res = PQexec( model->conn, sql->mbs );
+	res = PQexec( model->conn, sql->bytes );
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK )
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
 	DString_Delete( sql );
@@ -281,10 +277,9 @@ static void DaoPostgreSQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N 
 static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
-	DString *sql = p[1]->xString.data;
+	DString *sql = p[1]->xString.value;
 	PGresult *res;
-	DString_ToMBS( sql );
-	res = PQexec( model->conn, sql->mbs );
+	res = PQexec( model->conn, sql->bytes );
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
 	}
@@ -296,9 +291,9 @@ static void DString_AppendKeyValues( DString *self, DaoMap *keyvalues )
 	DNode *it;
 	for(it=DaoMap_First(keyvalues); it; it=DaoMap_Next(keyvalues,it)){
 		if( self->size ) DString_AppendChar( self, ',' );
-		DString_AppendSQL( self, it->key.pValue->xString.data, 1, "\"" );
-		DString_AppendMBS( self, "=>" );
-		DString_AppendSQL( self, it->value.pValue->xString.data, 1, "\"" );
+		DString_AppendSQL( self, it->key.pValue->xString.value, 1, "\"" );
+		DString_AppendChars( self, "=>" );
+		DString_AppendSQL( self, it->value.pValue->xString.value, 1, "\"" );
 	}
 }
 static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc );
@@ -307,22 +302,22 @@ static void DaoValue_ToJSON( DaoValue *self, DString *json, DaoProcess *proc )
 	char chs[100] = {0};
 	switch( self->type ){
 	case DAO_NONE :
-		DString_AppendMBS( json, "null" );
+		DString_AppendChars( json, "null" );
 		break;
 	case DAO_INTEGER :
 		sprintf( chs, "%" DAO_INT_FORMAT, self->xInteger.value );
-		DString_AppendMBS( json, chs );
+		DString_AppendChars( json, chs );
 		break;
 	case DAO_FLOAT :
 		sprintf( chs, "%g", self->xFloat.value );
-		DString_AppendMBS( json, chs );
+		DString_AppendChars( json, chs );
 		break;
 	case DAO_DOUBLE :
 		sprintf( chs, "%g", self->xDouble.value );
-		DString_AppendMBS( json, chs );
+		DString_AppendChars( json, chs );
 		break;
 	case DAO_STRING :
-		DString_AppendSQL( json, self->xString.data, 1, "\"" );
+		DString_AppendSQL( json, self->xString.value, 1, "\"" );
 		break;
 	case DAO_TUPLE :
 		DaoTuple_ToJSON( (DaoTuple*) self, json, proc );
@@ -356,13 +351,13 @@ static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 			DString_AppendSQL( json, id2name->items.pString[i], 1, "\"" );
 			DString_AppendChar( json, ':' );
 		}
-		DaoValue_ToJSON( self->items[i], json, proc );
+		DaoValue_ToJSON( self->values[i], json, proc );
 	}
 	DString_AppendChar( json, '}' );
 	if( id2name ) DArray_Delete( id2name );
 
-	//printf( "%s\n", json->mbs );
-	//DString_SetMBS( json, "{ \"name\": \"Firefox\" }" );
+	//printf( "%s\n", json->bytes );
+	//DString_SetChars( json, "{ \"name\": \"Firefox\" }" );
 }
 static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index, DaoProcess *proc )
 {
@@ -393,24 +388,23 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		self->paramInts64[index] = htobe64(*(uint64_t*) &value->xDouble.value );
 		break;
 	case DAO_STRING  :
-		mbstring = value->xString.data;
-		DString_ToMBS( mbstring );
-		DString_SetDataMBS( self->base.pardata[index], mbstring->mbs, mbstring->size );
-		self->paramValues[index] = self->base.pardata[index]->mbs;
+		mbstring = value->xString.value;
+		DString_SetBytes( self->base.pardata[index], mbstring->bytes, mbstring->size );
+		self->paramValues[index] = self->base.pardata[index]->bytes;
 		self->paramLengths[index] = mbstring->size;
 		break;
 	case DAO_MAP :
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
 		DString_AppendKeyValues( mbstring, (DaoMap*) value );
-		self->paramValues[index] = mbstring->mbs;
+		self->paramValues[index] = mbstring->bytes;
 		self->paramLengths[index] = mbstring->size;
 		break;
 	case DAO_TUPLE :
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
 		DaoTuple_ToJSON( (DaoTuple*) value, mbstring, proc );
-		self->paramValues[index] = mbstring->mbs;
+		self->paramValues[index] = mbstring->bytes;
 		self->paramLengths[index] = mbstring->size;
 		break;
 	default : break;
@@ -424,13 +418,13 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 	DString *mbstring;
 	int i, k = -1;
 	for(i=1,k=0; i<klass->objDataName->size; i++){
-		char *tpname = vars[i]->dtype->name->mbs;
+		char *tpname = vars[i]->dtype->name->bytes;
 		DaoValue *value = object->objValues[i];
 		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) continue;
 		DaoPostgreSQLHD_BindValue( handle, value, k++, proc );
 	}
 	if( handle->res ) PQclear( handle->res );
-	handle->res = PQexecPrepared( model->conn, handle->name->mbs, k, handle->paramValues,
+	handle->res = PQexecPrepared( model->conn, handle->name->bytes, k, handle->paramValues,
 			handle->paramLengths, handle->paramFormats, 1 );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
@@ -468,11 +462,11 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			break;
 		case DAO_STRING :
 			self->paramTypes[k] = BYTEAOID; // ???
-			if( strstr( type->name->mbs, "CHAR" ) == type->name->mbs ){
+			if( strstr( type->name->bytes, "CHAR" ) == type->name->bytes ){
 				self->paramTypes[k] = BPCHAROID;
-			}else if( strstr( type->name->mbs, "VARCHAR" ) == type->name->mbs ){
+			}else if( strstr( type->name->bytes, "VARCHAR" ) == type->name->bytes ){
 				self->paramTypes[k] = VARCHAROID;
-			}else if( strcmp( type->name->mbs, "TEXT" ) == 0 ){
+			}else if( strcmp( type->name->bytes, "TEXT" ) == 0 ){
 				self->paramTypes[k] = TEXTOID;
 			}
 			break;
@@ -492,9 +486,9 @@ static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
-	//fprintf( stderr, "%s\n", handle->base.sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->base.sqlSource->bytes );
 	DaoPostgreSQLHD_PrepareBindings( handle );
-	handle->res = PQprepare( model->conn, handle->name->mbs, str->mbs, handle->base.paramCount, handle->paramTypes );
+	handle->res = PQprepare( model->conn, handle->name->bytes, str->bytes, handle->base.paramCount, handle->paramTypes );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
 		return;
@@ -516,7 +510,7 @@ static void DaoPostgreSQLDB_Select( DaoProcess *proc, DaoValue *p[], int N )
 
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
 	if( DaoSQLHandle_PrepareSelect( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
-	//printf( "%s\n", handle->base.sqlSource->mbs );
+	//printf( "%s\n", handle->base.sqlSource->bytes );
 }
 static void DaoPostgreSQLDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -550,7 +544,7 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		DaoPostgreSQLDB *db = handle->model;
 		DString *sql = handle->base.sqlSource;
 		if( handle->res ) PQclear( handle->res );
-		handle->res = PQprepare( db->conn, handle->name->mbs, sql->mbs, handle->base.paramCount, handle->paramTypes );
+		handle->res = PQprepare( db->conn, handle->name->bytes, sql->bytes, handle->base.paramCount, handle->paramTypes );
 		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
 			return;
@@ -569,13 +563,13 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 	DaoPostgreSQLDB *model = handle->model;
 	int i, ret;
 
-	//printf( "%s\n", handle->base.sqlSource->mbs );
+	//printf( "%s\n", handle->base.sqlSource->bytes );
 
 	if( handle->base.prepared ==0 ){
 		DaoPostgreSQLDB *db = handle->model;
 		DString *sql = handle->base.sqlSource;
 		if( handle->res ) PQclear( handle->res );
-		handle->res = PQprepare( db->conn, handle->name->mbs, sql->mbs, handle->base.paramCount, handle->paramTypes );
+		handle->res = PQprepare( db->conn, handle->name->bytes, sql->bytes, handle->base.paramCount, handle->paramTypes );
 		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
 			return 0;
@@ -583,7 +577,7 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 		handle->base.prepared = 1;
 	}
 	if( handle->res ) PQclear( handle->res );
-	handle->res = PQexecPrepared( model->conn, handle->name->mbs, handle->base.paramCount,
+	handle->res = PQexecPrepared( model->conn, handle->name->bytes, handle->base.paramCount,
 			handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
 	ret = PQresultStatus( handle->res );
 	if( ret != status[0] && ret != status[1] ){
@@ -606,7 +600,7 @@ static int DaoPostgreSQLHD_RetrieveJSON( DaoProcess *proc, DaoTuple *json, PGres
 	uint64_t ivalue64;
 	daoint i, j, len;
 	for(i=0; i<json->size; ++i){
-		DaoValue *item = json->items[i];
+		DaoValue *item = json->values[i];
 		pdata = PQgetvalue( res, row, k++ );
 		if( pdata == NULL ) continue;
 		switch( item->type ){
@@ -625,7 +619,7 @@ static int DaoPostgreSQLHD_RetrieveJSON( DaoProcess *proc, DaoTuple *json, PGres
 			break;
 		case DAO_STRING  :
 			len = PQgetlength( res, row, k-1 );
-			DString_SetDataMBS( item->xString.data, pdata, len );
+			DString_SetBytes( item->xString.value, pdata, len );
 			break;
 		case DAO_TUPLE :
 			k --;
@@ -679,7 +673,7 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 				break;
 			case DAO_STRING  :
 				len = PQgetlength( handle->res, row, k-1 );
-				DString_SetDataMBS( value->xString.data, pdata, len );
+				DString_SetBytes( value->xString.value, pdata, len );
 				break;
 			case DAO_MAP :
 				k --;
@@ -688,7 +682,7 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 					pdata = PQgetvalue( handle->res, row, k++ );
 					if( pdata == NULL ) continue;
 					len = PQgetlength( handle->res, row, k-1 );
-					DString_SetDataMBS( it->value.pValue->xString.data, pdata, len );
+					DString_SetBytes( it->value.pValue->xString.value, pdata, len );
 				}
 				break;
 			case DAO_TUPLE :
@@ -764,8 +758,8 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 	}
 	fname = DString_New(1);
 	klass = handle->classList->items.pClass[0];
-	if( handle->setCount ) DString_AppendMBS( handle->sqlSource, ", " );
-	DString_Assign( fname, field->xString.data );
+	if( handle->setCount ) DString_AppendChars( handle->sqlSource, ", " );
+	DString_Assign( fname, field->xString.value );
 
 	type2 = DaoClass_GetDataType( klass, fname, & status, NULL );
 	type = type2 ? *type2 : NULL;
@@ -776,18 +770,18 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 		klass = (DaoClass*) p[1];
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 		DString_Assign( fname, tabname );
-		DString_AppendMBS( fname, "." );
-		DString_Append( fname, field->xString.data );
+		DString_AppendChars( fname, "." );
+		DString_Append( fname, field->xString.value );
 	}
 	DString_Append( handle->sqlSource, fname );
 	if( update ){
-		DString_AppendMBS( handle->sqlSource, "=" );
+		DString_AppendChars( handle->sqlSource, "=" );
 		DString_Append( handle->sqlSource, fname );
 	}
-	DString_AppendMBS( handle->sqlSource, op );
+	DString_AppendChars( handle->sqlSource, op );
 
 	if( N >2 ){
-		DString *mbstring = field->xString.data;
+		DString *mbstring = field->xString.value;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -795,15 +789,15 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->xString.data );
-			DString_AppendSQL( handle->sqlSource, field->xString.data, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, field->xString.value );
+			DString_AppendSQL( handle->sqlSource, field->xString.value, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
 		handle->partypes[handle->paramCount++] = type;
 		sprintf( buf, "$%i", handle->paramCount );
-		DString_AppendMBS( handle->sqlSource, buf );
-		DString_AppendMBS( handle->sqlSource, "::hstore" );
+		DString_AppendChars( handle->sqlSource, buf );
+		DString_AppendChars( handle->sqlSource, "::hstore" );
 	}
 	DString_Delete( fname );
 }
@@ -828,12 +822,12 @@ static void DaoPostgreSQLHD_HStoreContain( DaoProcess *proc, DaoValue *p[], int 
 
 static void DString_AppendCastAs( DString *sql, DaoType *cast )
 {
-	DString_AppendMBS( sql, " AS " );
+	DString_AppendChars( sql, " AS " );
 	switch( cast->tid ){
-	case DAO_INTEGER : DString_AppendMBS( sql, " INTEGER) " ); break;
-	case DAO_FLOAT   : DString_AppendMBS( sql, " FLOAT) " ); break;
-	case DAO_DOUBLE  : DString_AppendMBS( sql, " DOUBLE) " ); break;
-	case DAO_STRING  : DString_AppendMBS( sql, " TEXT) " ); break;
+	case DAO_INTEGER : DString_AppendChars( sql, " INTEGER) " ); break;
+	case DAO_FLOAT   : DString_AppendChars( sql, " FLOAT) " ); break;
+	case DAO_DOUBLE  : DString_AppendChars( sql, " DOUBLE) " ); break;
+	case DAO_STRING  : DString_AppendChars( sql, " TEXT) " ); break;
 	}
 }
 
@@ -852,7 +846,7 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 		return;
 	}
 	fname = DString_New(1);
-	if( handle->setCount ) DString_AppendMBS( handle->sqlSource, ", " );
+	if( handle->setCount ) DString_AppendChars( handle->sqlSource, ", " );
 
 	if( p[1]->type == DAO_CLASS ){
 		field = (DaoString*) p[2];
@@ -861,27 +855,27 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 		value = cast != NULL ? p[5] : p[4];
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 		DString_Assign( fname, tabname );
-		DString_AppendMBS( fname, "." );
-		DString_Append( fname, field->data );
+		DString_AppendChars( fname, "." );
+		DString_Append( fname, field->value );
 	}else{
-		DString_Assign( fname, field->data );
+		DString_Assign( fname, field->value );
 	}
 	DString_Append( handle->sqlSource, fname );
-	DString_AppendMBS( handle->sqlSource, "=" );
+	DString_AppendChars( handle->sqlSource, "=" );
 	DString_Append( handle->sqlSource, fname );
-	DString_AppendMBS( handle->sqlSource, " || (\'" );
-	DString_AppendSQL( handle->sqlSource, key->data, 1, "\"" );
-	DString_AppendMBS( handle->sqlSource, "=>\' || " );
-	DString_AppendMBS( handle->sqlSource, "CAST( " );
-	if( cast ) DString_AppendMBS( handle->sqlSource, "CAST(" );
+	DString_AppendChars( handle->sqlSource, " || (\'" );
+	DString_AppendSQL( handle->sqlSource, key->value, 1, "\"" );
+	DString_AppendChars( handle->sqlSource, "=>\' || " );
+	DString_AppendChars( handle->sqlSource, "CAST( " );
+	if( cast ) DString_AppendChars( handle->sqlSource, "CAST(" );
 	DString_Append( handle->sqlSource, fname );
-	DString_AppendMBS( handle->sqlSource, "->" );
-	DString_AppendSQL( handle->sqlSource, key->data, 1, "\'" );
+	DString_AppendChars( handle->sqlSource, "->" );
+	DString_AppendSQL( handle->sqlSource, key->value, 1, "\'" );
 	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
-	DString_AppendMBS( handle->sqlSource, "+" );
+	DString_AppendChars( handle->sqlSource, "+" );
 
 	if( N >2 ){
-		DString *mbstring = field->data;
+		DString *mbstring = field->value;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -889,19 +883,19 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->data );
-			DString_AppendSQL( handle->sqlSource, field->data, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, field->value );
+			DString_AppendSQL( handle->sqlSource, field->value, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
 		handle->partypes[handle->paramCount++] = cast;
 		sprintf( buf, "$%i", handle->paramCount );
-		DString_AppendMBS( handle->sqlSource, buf );
+		DString_AppendChars( handle->sqlSource, buf );
 	}
-	DString_AppendMBS( handle->sqlSource, " AS TEXT))::hstore" );
+	DString_AppendChars( handle->sqlSource, " AS TEXT))::hstore" );
 	handle->setCount ++;
 	DString_Delete( fname );
-	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
 }
 static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, char *op )
 {
@@ -917,7 +911,7 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 		return;
 	}
-	if( handle->boolCount ) DString_AppendMBS( handle->sqlSource, " AND " );
+	if( handle->boolCount ) DString_AppendChars( handle->sqlSource, " AND " );
 
 	if( p[1]->type == DAO_CLASS ){
 		field = (DaoString*) p[2];
@@ -925,19 +919,19 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 		cast = DaoValue_CastType( p[4] );
 		value = cast != NULL ? p[5] : p[4];
 	}
-	if( cast ) DString_AppendMBS( handle->sqlSource, "CAST( " );
+	if( cast ) DString_AppendChars( handle->sqlSource, "CAST( " );
 	if( p[1]->type == DAO_CLASS ){
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 		DString_Append( handle->sqlSource, tabname );
-		DString_AppendMBS( handle->sqlSource, "." );
+		DString_AppendChars( handle->sqlSource, "." );
 	}
-	DString_Append( handle->sqlSource, field->data );
-	DString_AppendMBS( handle->sqlSource, "->" );
-	DString_AppendSQL( handle->sqlSource, key->data, 1, "\'" );
+	DString_Append( handle->sqlSource, field->value );
+	DString_AppendChars( handle->sqlSource, "->" );
+	DString_AppendSQL( handle->sqlSource, key->value, 1, "\'" );
 	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
-	DString_AppendMBS( handle->sqlSource, op );
+	DString_AppendChars( handle->sqlSource, op );
 	if( N >2 ){
-		DString *mbstring = field->data;
+		DString *mbstring = field->value;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -945,17 +939,17 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->data );
-			DString_AppendSQL( handle->sqlSource, field->data, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, field->value );
+			DString_AppendSQL( handle->sqlSource, field->value, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
 		handle->partypes[handle->paramCount++] = cast;
 		sprintf( buf, "$%i", handle->paramCount );
-		DString_AppendMBS( handle->sqlSource, buf );
+		DString_AppendChars( handle->sqlSource, buf );
 	}
 	handle->boolCount ++;
-	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
 }
 static void DaoPostgreSQLHD_EQ( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -988,13 +982,13 @@ static void DString_AppendPath( DString *self, DaoList *path )
 	int i, n;
 	for(i=0,n=DaoList_Size( path ); i<n; ++i){
 		DaoValue *item = DaoList_GetItem( path, i );
-		DString_AppendMBS( self, "->" );
-		if( i+1 == n ) DString_AppendMBS( self, ">" );
+		DString_AppendChars( self, "->" );
+		if( i+1 == n ) DString_AppendChars( self, ">" );
 		if( item->type == DAO_INTEGER ){
 			sprintf( chs, "%" DAO_INT_FORMAT, item->xInteger.value );
-			DString_AppendMBS( self, chs );
+			DString_AppendChars( self, chs );
 		}else{
-			DString_AppendSQL( self, item->xString.data, 1, "\'" );
+			DString_AppendSQL( self, item->xString.value, 1, "\'" );
 		}
 	}
 }
@@ -1013,7 +1007,7 @@ static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, c
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 		return;
 	}
-	if( handle->boolCount ) DString_AppendMBS( handle->sqlSource, " AND " );
+	if( handle->boolCount ) DString_AppendChars( handle->sqlSource, " AND " );
 
 	if( p[1]->type == DAO_CLASS ){
 		field = (DaoString*) p[2];
@@ -1021,22 +1015,22 @@ static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, c
 		cast = DaoValue_CastType( p[4] );
 		value = cast != NULL ? p[5] : p[4];
 	}
-	if( cast ) DString_AppendMBS( handle->sqlSource, "CAST( " );
+	if( cast ) DString_AppendChars( handle->sqlSource, "CAST( " );
 	if( p[1]->type == DAO_CLASS ){
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 		DString_Append( handle->sqlSource, tabname );
-		DString_AppendMBS( handle->sqlSource, "." );
+		DString_AppendChars( handle->sqlSource, "." );
 	}
 	if( DaoList_Size( path ) == 0 ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
 		return;
 	}
-	DString_Append( handle->sqlSource, field->data );
+	DString_Append( handle->sqlSource, field->value );
 	DString_AppendPath( handle->sqlSource, path );
 	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
-	DString_AppendMBS( handle->sqlSource, op );
+	DString_AppendChars( handle->sqlSource, op );
 	if( N >2 ){
-		DString *mbstring = field->data;
+		DString *mbstring = field->value;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -1044,17 +1038,17 @@ static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, c
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->data );
-			DString_AppendSQL( handle->sqlSource, field->data, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, field->value );
+			DString_AppendSQL( handle->sqlSource, field->value, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
 		handle->partypes[handle->paramCount++] = cast;
 		sprintf( buf, "$%i", handle->paramCount );
-		DString_AppendMBS( handle->sqlSource, buf );
+		DString_AppendChars( handle->sqlSource, buf );
 	}
 	handle->boolCount ++;
-	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
 }
 static void DaoPostgreSQLHD_EQ2( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -1100,22 +1094,22 @@ static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N )
 	}
 
 	DaoProcess_PutValue( proc, p[0] );
-	DString_AppendMBS( handle->sqlSource, " ORDER BY " );
-	if( cast != NULL ) DString_AppendMBS( handle->sqlSource, "CAST( " );
+	DString_AppendChars( handle->sqlSource, " ORDER BY " );
+	if( cast != NULL ) DString_AppendChars( handle->sqlSource, "CAST( " );
 	if( tabname != NULL ){
 		DString_Append( handle->sqlSource, tabname );
-		DString_AppendMBS( handle->sqlSource, "." );
+		DString_AppendChars( handle->sqlSource, "." );
 	}
 	DString_Append( handle->sqlSource, field );
-	DString_AppendMBS( handle->sqlSource, "->" );
+	DString_AppendChars( handle->sqlSource, "->" );
 	DString_AppendSQL( handle->sqlSource, key, 1, "\'" );
 	if( cast != NULL ) DString_AppendCastAs( handle->sqlSource, cast );
 	if( desc ){
-		DString_AppendMBS( handle->sqlSource, "DESC " );
+		DString_AppendChars( handle->sqlSource, "DESC " );
 	}else{
-		DString_AppendMBS( handle->sqlSource, "ASC " );
+		DString_AppendChars( handle->sqlSource, "ASC " );
 	}
-	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
 }
 
 static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
@@ -1136,21 +1130,21 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 	}
 
 	DaoProcess_PutValue( proc, p[0] );
-	DString_AppendMBS( handle->sqlSource, " ORDER BY " );
-	if( cast != NULL ) DString_AppendMBS( handle->sqlSource, "CAST( " );
+	DString_AppendChars( handle->sqlSource, " ORDER BY " );
+	if( cast != NULL ) DString_AppendChars( handle->sqlSource, "CAST( " );
 	if( tabname != NULL ){
 		DString_Append( handle->sqlSource, tabname );
-		DString_AppendMBS( handle->sqlSource, "." );
+		DString_AppendChars( handle->sqlSource, "." );
 	}
 	DString_Append( handle->sqlSource, field );
 	DString_AppendPath( handle->sqlSource, path );
 	if( cast != NULL ) DString_AppendCastAs( handle->sqlSource, cast );
 	if( desc ){
-		DString_AppendMBS( handle->sqlSource, "DESC " );
+		DString_AppendChars( handle->sqlSource, "DESC " );
 	}else{
-		DString_AppendMBS( handle->sqlSource, "ASC " );
+		DString_AppendChars( handle->sqlSource, "ASC " );
 	}
-	//fprintf( stderr, "%s\n", handle->sqlSource->mbs );
+	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
 }
 
 
