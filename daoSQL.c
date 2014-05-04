@@ -223,7 +223,7 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 	DString_AppendChars( sql, "(" );
 	for(i=1; i<klass->objDataName->size; i++){
 		if( i >1 ) DString_AppendChars( sql, "," );
-		tpname = vars[i]->dtype->name->bytes;
+		tpname = vars[i]->dtype->name->chars;
 		DString_AppendChars( sql, "\n" );
 		DString_Append( sql, names[i] );
 		DString_AppendChars( sql, "  " );
@@ -261,7 +261,7 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 		}
 	}
 	DString_AppendChars( sql, "\n);\n" );
-	//printf( "%s\n", sql->bytes );
+	//printf( "%s\n", sql->chars );
 }
 int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -288,7 +288,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString_AppendChars( self->sqlSource, "(" );
 	for(i=1,k=0; i<klass->objDataName->size; i++){
 		if( self->database->type == DAO_POSTGRESQL ){
-			char *tpname = klass->instvars->items.pVar[i]->dtype->name->bytes;
+			char *tpname = klass->instvars->items.pVar[i]->dtype->name->chars;
 			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
 		if( k++ ) DString_AppendChars( self->sqlSource, "," );
@@ -299,7 +299,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	for(i=1,k=0; i<klass->objDataName->size; i++){
 		DaoType *type = klass->instvars->items.pVar[i]->dtype;
 		if( self->database->type == DAO_POSTGRESQL ){
-			char *tpname = klass->instvars->items.pVar[i]->dtype->name->bytes;
+			char *tpname = klass->instvars->items.pVar[i]->dtype->name->chars;
 			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
 		self->partypes[self->paramCount++] = type;
@@ -307,9 +307,9 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		if( self->database->type == DAO_POSTGRESQL ){
 			sprintf( buf, "$%i", k );
 			DString_AppendChars( self->sqlSource, buf );
-			if( strcmp( type->name->bytes, "HSTORE" ) == 0 ){
+			if( strcmp( type->name->chars, "HSTORE" ) == 0 ){
 				DString_AppendChars( self->sqlSource, "::hstore" );
-			}else if( strcmp( type->name->bytes, "JSON" ) == 0 ){
+			}else if( strcmp( type->name->chars, "JSON" ) == 0 ){
 				DString_AppendChars( self->sqlSource, "::json" );
 			}
 		}else{
@@ -317,7 +317,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		}
 	}
 	DString_AppendChars( self->sqlSource, ");" );
-	//printf( "%s\n", self->sqlSource->bytes );
+	//printf( "%s\n", self->sqlSource->chars );
 	return 1;
 }
 int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N )
@@ -414,7 +414,7 @@ static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProc
 	if( id2name ) DArray_Delete( id2name );
 	DString_Delete( path2 );
 
-	//printf( "%s\n", json->bytes );
+	//printf( "%s\n", json->chars );
 	//DString_SetChars( json, "{ \"name\": \"Firefox\" }" );
 	return k;
 }
@@ -493,7 +493,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		if( i >1 ) DString_AppendChars( self->sqlSource, "," );
 		DString_Append( self->sqlSource, tabname );
 	}
-	//printf( "%s\n", self->sqlSource->bytes );
+	//printf( "%s\n", self->sqlSource->chars );
 	return 1;
 }
 int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N )
@@ -648,7 +648,7 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 		}
 	}
 	handler->boolCount ++;
-	//fprintf( stderr, "%s\n", handler->sqlSource->bytes );
+	//fprintf( stderr, "%s\n", handler->sqlSource->chars );
 }
 static void DaoSQLHandle_EQ( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -717,7 +717,7 @@ static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	DString_AppendChars( handler->sqlSource, " ) " );
 	handler->boolCount ++;
-	//printf( "%s\n", handler->sqlSource->bytes );
+	//printf( "%s\n", handler->sqlSource->chars );
 }
 static void DaoSQLHandle_OR( DaoProcess *proc, DaoValue *p[], int N )
 {

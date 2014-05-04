@@ -252,8 +252,8 @@ static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 	if( N >3 ) DString_Assign( model->base.password, p[3]->xString.value );
 	DaoProcess_PutCdata( proc, model, dao_type_postgresql_database );
 	// TODO: port!
-	model->conn = PQsetdbLogin( model->base.host->bytes, NULL, NULL, NULL,
-			model->base.name->bytes, model->base.user->bytes, model->base.password->bytes );
+	model->conn = PQsetdbLogin( model->base.host->chars, NULL, NULL, NULL,
+			model->base.name->chars, model->base.user->chars, model->base.password->chars );
 	if( PQstatus( model->conn ) != CONNECTION_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR, PQerrorMessage( model->conn ) );
 		PQfinish( model->conn );
@@ -268,7 +268,7 @@ static void DaoPostgreSQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N 
 	DString *sql = DString_New(1);
 	PGresult *res;
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
-	res = PQexec( model->conn, sql->bytes );
+	res = PQexec( model->conn, sql->chars );
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK )
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
 	DString_Delete( sql );
@@ -279,7 +279,7 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
 	DString *sql = p[1]->xString.value;
 	PGresult *res;
-	res = PQexec( model->conn, sql->bytes );
+	res = PQexec( model->conn, sql->chars );
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
 	}
@@ -356,7 +356,7 @@ static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 	DString_AppendChar( json, '}' );
 	if( id2name ) DArray_Delete( id2name );
 
-	//printf( "%s\n", json->bytes );
+	//printf( "%s\n", json->chars );
 	//DString_SetChars( json, "{ \"name\": \"Firefox\" }" );
 }
 static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index, DaoProcess *proc )
@@ -389,22 +389,22 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		break;
 	case DAO_STRING  :
 		mbstring = value->xString.value;
-		DString_SetBytes( self->base.pardata[index], mbstring->bytes, mbstring->size );
-		self->paramValues[index] = self->base.pardata[index]->bytes;
+		DString_SetBytes( self->base.pardata[index], mbstring->chars, mbstring->size );
+		self->paramValues[index] = self->base.pardata[index]->chars;
 		self->paramLengths[index] = mbstring->size;
 		break;
 	case DAO_MAP :
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
 		DString_AppendKeyValues( mbstring, (DaoMap*) value );
-		self->paramValues[index] = mbstring->bytes;
+		self->paramValues[index] = mbstring->chars;
 		self->paramLengths[index] = mbstring->size;
 		break;
 	case DAO_TUPLE :
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
 		DaoTuple_ToJSON( (DaoTuple*) value, mbstring, proc );
-		self->paramValues[index] = mbstring->bytes;
+		self->paramValues[index] = mbstring->chars;
 		self->paramLengths[index] = mbstring->size;
 		break;
 	default : break;
@@ -418,13 +418,13 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 	DString *mbstring;
 	int i, k = -1;
 	for(i=1,k=0; i<klass->objDataName->size; i++){
-		char *tpname = vars[i]->dtype->name->bytes;
+		char *tpname = vars[i]->dtype->name->chars;
 		DaoValue *value = object->objValues[i];
 		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) continue;
 		DaoPostgreSQLHD_BindValue( handle, value, k++, proc );
 	}
 	if( handle->res ) PQclear( handle->res );
-	handle->res = PQexecPrepared( model->conn, handle->name->bytes, k, handle->paramValues,
+	handle->res = PQexecPrepared( model->conn, handle->name->chars, k, handle->paramValues,
 			handle->paramLengths, handle->paramFormats, 1 );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
@@ -462,11 +462,11 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			break;
 		case DAO_STRING :
 			self->paramTypes[k] = BYTEAOID; // ???
-			if( strstr( type->name->bytes, "CHAR" ) == type->name->bytes ){
+			if( strstr( type->name->chars, "CHAR" ) == type->name->chars ){
 				self->paramTypes[k] = BPCHAROID;
-			}else if( strstr( type->name->bytes, "VARCHAR" ) == type->name->bytes ){
+			}else if( strstr( type->name->chars, "VARCHAR" ) == type->name->chars ){
 				self->paramTypes[k] = VARCHAROID;
-			}else if( strcmp( type->name->bytes, "TEXT" ) == 0 ){
+			}else if( strcmp( type->name->chars, "TEXT" ) == 0 ){
 				self->paramTypes[k] = TEXTOID;
 			}
 			break;
@@ -486,9 +486,9 @@ static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
-	//fprintf( stderr, "%s\n", handle->base.sqlSource->bytes );
+	//fprintf( stderr, "%s\n", handle->base.sqlSource->chars );
 	DaoPostgreSQLHD_PrepareBindings( handle );
-	handle->res = PQprepare( model->conn, handle->name->bytes, str->bytes, handle->base.paramCount, handle->paramTypes );
+	handle->res = PQprepare( model->conn, handle->name->chars, str->chars, handle->base.paramCount, handle->paramTypes );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
 		return;
@@ -510,7 +510,7 @@ static void DaoPostgreSQLDB_Select( DaoProcess *proc, DaoValue *p[], int N )
 
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
 	if( DaoSQLHandle_PrepareSelect( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
-	//printf( "%s\n", handle->base.sqlSource->bytes );
+	//printf( "%s\n", handle->base.sqlSource->chars );
 }
 static void DaoPostgreSQLDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -544,7 +544,7 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		DaoPostgreSQLDB *db = handle->model;
 		DString *sql = handle->base.sqlSource;
 		if( handle->res ) PQclear( handle->res );
-		handle->res = PQprepare( db->conn, handle->name->bytes, sql->bytes, handle->base.paramCount, handle->paramTypes );
+		handle->res = PQprepare( db->conn, handle->name->chars, sql->chars, handle->base.paramCount, handle->paramTypes );
 		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
 			return;
@@ -563,13 +563,13 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 	DaoPostgreSQLDB *model = handle->model;
 	int i, ret;
 
-	//printf( "%s\n", handle->base.sqlSource->bytes );
+	//printf( "%s\n", handle->base.sqlSource->chars );
 
 	if( handle->base.prepared ==0 ){
 		DaoPostgreSQLDB *db = handle->model;
 		DString *sql = handle->base.sqlSource;
 		if( handle->res ) PQclear( handle->res );
-		handle->res = PQprepare( db->conn, handle->name->bytes, sql->bytes, handle->base.paramCount, handle->paramTypes );
+		handle->res = PQprepare( db->conn, handle->name->chars, sql->chars, handle->base.paramCount, handle->paramTypes );
 		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
 			return 0;
@@ -577,7 +577,7 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 		handle->base.prepared = 1;
 	}
 	if( handle->res ) PQclear( handle->res );
-	handle->res = PQexecPrepared( model->conn, handle->name->bytes, handle->base.paramCount,
+	handle->res = PQexecPrepared( model->conn, handle->name->chars, handle->base.paramCount,
 			handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
 	ret = PQresultStatus( handle->res );
 	if( ret != status[0] && ret != status[1] ){
@@ -895,7 +895,7 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 	DString_AppendChars( handle->sqlSource, " AS TEXT))::hstore" );
 	handle->setCount ++;
 	DString_Delete( fname );
-	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
+	//fprintf( stderr, "%s\n", handle->sqlSource->chars );
 }
 static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, char *op )
 {
@@ -949,7 +949,7 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 		DString_AppendChars( handle->sqlSource, buf );
 	}
 	handle->boolCount ++;
-	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
+	//fprintf( stderr, "%s\n", handle->sqlSource->chars );
 }
 static void DaoPostgreSQLHD_EQ( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -1048,7 +1048,7 @@ static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, c
 		DString_AppendChars( handle->sqlSource, buf );
 	}
 	handle->boolCount ++;
-	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
+	//fprintf( stderr, "%s\n", handle->sqlSource->chars );
 }
 static void DaoPostgreSQLHD_EQ2( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -1109,7 +1109,7 @@ static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N )
 	}else{
 		DString_AppendChars( handle->sqlSource, "ASC " );
 	}
-	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
+	//fprintf( stderr, "%s\n", handle->sqlSource->chars );
 }
 
 static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
@@ -1144,7 +1144,7 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 	}else{
 		DString_AppendChars( handle->sqlSource, "ASC " );
 	}
-	//fprintf( stderr, "%s\n", handle->sqlSource->bytes );
+	//fprintf( stderr, "%s\n", handle->sqlSource->chars );
 }
 
 

@@ -63,8 +63,8 @@ DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 	memset( self->parbind, 0, MAX_PARAM_COUNT*sizeof(MYSQL_BIND) );
 	memset( self->resbind, 0, MAX_PARAM_COUNT*sizeof(MYSQL_BIND) );
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
-		self->parbind[i].buffer = self->base.pardata[i]->bytes;
-		self->resbind[i].buffer = self->base.resdata[i]->bytes;
+		self->parbind[i].buffer = self->base.pardata[i]->chars;
+		self->resbind[i].buffer = self->base.resdata[i]->chars;
 		self->resbind[i].buffer_length = self->base.resdata[i]->size;
 	}
 	self->resbind[0].length = & self->base.reslen;
@@ -114,18 +114,18 @@ static void DaoMySQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 	if( N >2 ) DString_Assign( model->base.user, p[2]->xString.value );
 	if( N >3 ) DString_Assign( model->base.password, p[3]->xString.value );
 	DaoProcess_PutCdata( proc, model, dao_type_mysql_database );
-	if( mysql_real_connect( model->mysql, model->base.host->bytes, 
-				model->base.user->bytes, model->base.password->bytes, 
+	if( mysql_real_connect( model->mysql, model->base.host->chars, 
+				model->base.user->chars, model->base.password->chars, 
 				NULL, 0, NULL, 0 ) ==NULL ){
 		DaoProcess_RaiseException( proc, DAO_ERROR, mysql_error( model->mysql ) );
 		mysql_close( model->mysql );
 		model->mysql = NULL;
 		return;
 	}
-	if( mysql_select_db( model->mysql, model->base.name->bytes ) ){
+	if( mysql_select_db( model->mysql, model->base.name->chars ) ){
 		DString_InsertChars( p[0]->xString.value, "create database ", 0, 0, 0 );
-		mysql_query( model->mysql, p[0]->xString.value->bytes );
-		if( mysql_select_db( model->mysql, model->base.name->bytes ) )
+		mysql_query( model->mysql, p[0]->xString.value->chars );
+		if( mysql_select_db( model->mysql, model->base.name->chars ) )
 			DaoProcess_RaiseException( proc, DAO_ERROR, mysql_error( model->mysql ) );
 	}
 }
@@ -137,7 +137,7 @@ static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 	MYSQL_STMT *stmt;
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	stmt = mysql_stmt_init( model->mysql );
-	if( mysql_stmt_prepare( stmt, sql->bytes, sql->size ) || mysql_stmt_execute( stmt ) )
+	if( mysql_stmt_prepare( stmt, sql->chars, sql->size ) || mysql_stmt_execute( stmt ) )
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_error( model->mysql ) );
 	DString_Delete( sql );
 	mysql_stmt_close( stmt );
@@ -146,7 +146,7 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DString *sql = p[1]->xString.value;
-	if( mysql_query( model->mysql, sql->bytes ) ){
+	if( mysql_query( model->mysql, sql->chars ) ){
 		DaoProcess_PutInteger( proc, 0 );
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_error( model->mysql ) );
 		return;
@@ -162,10 +162,10 @@ static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoOb
 	char *pbuf, *tpname;
 	int i, k = -1;
 	for(i=1; i<klass->objDataName->size; i++){
-		tpname = vars[i]->dtype->name->bytes;
+		tpname = vars[i]->dtype->name->chars;
 		value = object->objValues[i];
 		bind = handle->parbind + (i-1);
-		pbuf = handle->base.pardata[i-1]->bytes;
+		pbuf = handle->base.pardata[i-1]->chars;
 		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) k = i;
 		switch( value->type ){
 			case DAO_NONE :
@@ -188,9 +188,9 @@ static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoOb
 				*(double*) pbuf = value->xDouble.value;
 				break;
 			case DAO_STRING  :
-				DString_SetBytes( handle->base.pardata[i-1], value->xString.value->bytes, value->xString.value->size );
+				DString_SetBytes( handle->base.pardata[i-1], value->xString.value->chars, value->xString.value->size );
 				bind->buffer_type = MYSQL_TYPE_STRING;
-				bind->buffer = handle->base.pardata[i-1]->bytes;
+				bind->buffer = handle->base.pardata[i-1]->chars;
 				bind->buffer_length = handle->base.pardata[i-1]->size;
 				break;
 			default : break;
@@ -212,8 +212,8 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	int i;
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
-	//printf( "%s\n", handle->base.sqlSource->bytes );
-	if( mysql_stmt_prepare( handle->stmt, str->bytes, str->size ) ){
+	//printf( "%s\n", handle->base.sqlSource->chars );
+	if( mysql_stmt_prepare( handle->stmt, str->chars, str->size ) ){
 		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
 		return;
 	}
@@ -233,7 +233,7 @@ static void DaoMySQLDB_Select( DaoProcess *proc, DaoValue *p[], int N )
 	DaoMySQLHD *handle = DaoMySQLHD_New( model );
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareSelect( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
-	//printf( "%s\n", handle->base.sqlSource->bytes );
+	//printf( "%s\n", handle->base.sqlSource->chars );
 }
 static void DaoMySQLDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -265,7 +265,7 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
-		if( mysql_stmt_prepare( handle->stmt, sql->bytes, sql->size ) )
+		if( mysql_stmt_prepare( handle->stmt, sql->chars, sql->size ) )
 			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
 		handle->base.prepared = 1;
 	}
@@ -280,20 +280,20 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 			break;
 		case DAO_INTEGER :
 			handle->parbind[ index ].buffer_type = MYSQL_TYPE_LONG;
-			*(long*)handle->base.pardata[index]->bytes = value->xInteger.value;
+			*(long*)handle->base.pardata[index]->chars = value->xInteger.value;
 			break;
 		case DAO_FLOAT :
 			handle->parbind[ index ].buffer_type = MYSQL_TYPE_DOUBLE;
-			*(double*)handle->base.pardata[index]->bytes = value->xFloat.value;
+			*(double*)handle->base.pardata[index]->chars = value->xFloat.value;
 			break;
 		case DAO_DOUBLE :
 			handle->parbind[ index ].buffer_type = MYSQL_TYPE_DOUBLE;
-			*(double*)handle->base.pardata[index]->bytes = value->xDouble.value;
+			*(double*)handle->base.pardata[index]->chars = value->xDouble.value;
 			break;
 		case DAO_STRING :
 			handle->parbind[ index ].buffer_type = MYSQL_TYPE_STRING;
 			DString_SetChars( handle->base.pardata[index], DString_GetData( value->xString.value ) );
-			handle->parbind[ index ].buffer = handle->base.pardata[index]->bytes;
+			handle->parbind[ index ].buffer = handle->base.pardata[index]->chars;
 			handle->parbind[ index ].buffer_length = handle->base.pardata[index]->size;
 			break;
 		default : break;
@@ -306,7 +306,7 @@ static int DaoMySQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N )
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
 		mysql_stmt_free_result( handle->stmt );
-		if( mysql_stmt_prepare( handle->stmt, sql->bytes, sql->size ) ) goto RaiseException;
+		if( mysql_stmt_prepare( handle->stmt, sql->chars, sql->size ) ) goto RaiseException;
 		handle->base.prepared = 1;
 		handle->base.executed = 0;
 	}
@@ -362,31 +362,31 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 			case DAO_INTEGER :
 				handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
 				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-				value->xInteger.value =  *(int*)handle->base.resdata[0]->bytes;
+				value->xInteger.value =  *(int*)handle->base.resdata[0]->chars;
 				break;
 			case DAO_FLOAT   :
 				handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
 				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-				value->xFloat.value =  *(double*)handle->base.resdata[0]->bytes;
+				value->xFloat.value =  *(double*)handle->base.resdata[0]->chars;
 				break;
 			case DAO_DOUBLE  :
 				handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
 				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-				value->xDouble.value =  *(double*)handle->base.resdata[0]->bytes;
+				value->xDouble.value =  *(double*)handle->base.resdata[0]->chars;
 				break;
 			case DAO_STRING  :
 				handle->resbind[0].buffer_type = MYSQL_TYPE_STRING;
 				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
 				pitch = handle->base.reslen >= MAX_DATA_SIZE ? MAX_DATA_SIZE : handle->base.reslen;
 				DString_Clear( value->xString.value );
-				DString_AppendBytes( value->xString.value, handle->base.resdata[0]->bytes, pitch );
+				DString_AppendBytes( value->xString.value, handle->base.resdata[0]->chars, pitch );
 				offset = MAX_DATA_SIZE;
 				while( offset < handle->base.reslen ){
 					rc = mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, offset );
 					pitch = offset;
 					offset += MAX_DATA_SIZE;
 					pitch = handle->base.reslen >= offset ? MAX_DATA_SIZE : handle->base.reslen - pitch;
-					DString_AppendBytes( value->xString.value, handle->base.resdata[0]->bytes, pitch );
+					DString_AppendBytes( value->xString.value, handle->base.resdata[0]->chars, pitch );
 				}
 				break;
 			default : break;
