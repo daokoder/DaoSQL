@@ -94,7 +94,7 @@ static void DaoSQLiteDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 	DString_Assign( model->base.name, p[0]->xString.value );
 	DaoProcess_PutCdata( proc, model, dao_type_sqlite3_database );
 	if( sqlite3_open( model->base.name->chars, & model->db ) ){
-		DaoProcess_RaiseException( proc, DAO_ERROR, sqlite3_errmsg( model->db ) );
+		DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( model->db ) );
 		sqlite3_close( model->db );
 		model->db = NULL;
 	}
@@ -108,11 +108,11 @@ static void DaoSQLiteDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 	int rc = 0;
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	rc = sqlite3_prepare_v2( model->db, sql->chars, sql->size, & stmt, NULL );
-	if( rc ) DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( model->db ) );
+	if( rc ) DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
 	if( rc == 0 ){
 		rc = sqlite3_step( stmt );
 		if( rc > SQLITE_OK && rc < SQLITE_ROW )
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( model->db ) );
+			DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
 	}
 	DString_Delete( sql );
 	sqlite3_finalize( stmt );
@@ -126,14 +126,14 @@ static void DaoSQLiteDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	if( sqlite3_prepare_v2( model->db, sql->chars, sql->size, & stmt, NULL ) ){
 		sqlite3_finalize( stmt );
 		DaoProcess_PutInteger( proc, 0 );
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( model->db ) );
+		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
 		return;
 	}
 	k = sqlite3_step( stmt );
 	if( k > SQLITE_OK && k < SQLITE_ROW ){
 		sqlite3_finalize( stmt );
 		DaoProcess_PutInteger( proc, 0 );
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( model->db ) );
+		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
 		return;
 	}
 	sqlite3_finalize( stmt );
@@ -176,11 +176,11 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 			break;
 		default : break;
 		}
-		if( k ) DaoProcess_RaiseException( proc, DAO_ERROR, sqlite3_errmsg( db ) );
+		if( k ) DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( db ) );
 	}
 	k = sqlite3_step( handle->stmt );
 	if( k > SQLITE_OK && k < SQLITE_ROW )
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( db ) );
+		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( db ) );
 
 	//printf( "k = %i %i\n", k, sqlite3_insert_id( handle->model->db ) );
 	if( key > 0 ) object->objValues[key]->xInteger.value = sqlite3_last_insert_rowid( db );
@@ -195,7 +195,7 @@ static void DaoSQLiteDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_sqlite3_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	if( sqlite3_prepare_v2( model->db, str->chars, str->size, & handle->stmt, NULL ) ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( model->db ) );
+		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
 		return;
 	}
 	for(i=1; i<N; ++i) DaoSQLiteDB_InsertObject( proc, handle, (DaoObject*) p[i] );
@@ -229,7 +229,7 @@ static void DaoSQLiteHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, p[0] );
 	for(i=1; i<N; ++i){
 		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			DaoProcess_RaiseError( proc, "Param", "" );
 			return;
 		}
 		DaoSQLiteDB_InsertObject( proc, handle, (DaoObject*) p[i] );
@@ -248,13 +248,13 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
 		if( sqlite3_prepare_v2( db, sql->chars, sql->size, & handle->stmt, NULL ) )
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( db ) );
+			DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( db ) );
 		handle->base.prepared = 1;
 	}
 	stmt = handle->stmt;
 	handle->base.executed = 0;
 	if( index >= MAX_PARAM_COUNT ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	k = SQLITE_MISUSE;
@@ -276,7 +276,7 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 			break;
 		default : break;
 	}
-	if( k ) DaoProcess_RaiseException( proc, DAO_ERROR, sqlite3_errmsg( db ) );
+	if( k ) DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( db ) );
 }
 static int DaoSQLiteHD_TryPrepare( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -286,7 +286,7 @@ static int DaoSQLiteHD_TryPrepare( DaoProcess *proc, DaoValue *p[], int N )
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
 		if( sqlite3_prepare_v2( handle->model->db, sql->chars, sql->size, & handle->stmt, NULL ) ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
+			DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( handle->model->db ) );
 			return 0;
 		}
 		handle->base.prepared = 1;
@@ -297,7 +297,7 @@ static int DaoSQLiteHD_TryPrepare( DaoProcess *proc, DaoValue *p[], int N )
 		if( p[i]->type == DAO_OBJECT ){
 			if( p[i]->xObject.defClass == handle->base.classList->items.pClass[i-1] ) continue;
 		}
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
+		DaoProcess_RaiseError( proc, "Param", "need class instance(s)" );
 		return 0;
 	}
 	return 1;
@@ -373,7 +373,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		k = sqlite3_step( handle->stmt );
 		handle->base.executed = 1;
 		if( k > SQLITE_OK && k < SQLITE_ROW ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
+			DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( handle->model->db ) );
 			break;
 		}
 		if( sqlite3_data_count( handle->stmt ) ==0 ) break;
@@ -402,7 +402,7 @@ static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 
 	k = sqlite3_step( handle->stmt );
 	if( k > SQLITE_OK && k < SQLITE_ROW ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, sqlite3_errmsg( handle->model->db ) );
+		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( handle->model->db ) );
 	}else if( sqlite3_data_count( handle->stmt ) ){
 		DaoSQLiteHD_Retrieve( proc, p, N );
 		*res = 1;

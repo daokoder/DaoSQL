@@ -274,7 +274,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 
 	for(i=1; i<N; ++i){
 		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			DaoProcess_RaiseError( proc, "Param", "" );
 			return 0;
 		}
 		object = (DaoObject*) p[1];
@@ -327,7 +327,7 @@ int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString *tabname = NULL;
 	int i;
 	if( p[1]->type != DAO_CLASS ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return 0;
 	}
 	klass = (DaoClass*) p[1];
@@ -348,7 +348,7 @@ static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProc
 	int i;
 
 	if( type->mapNames != NULL && type->mapNames->size != self->size ){
-		DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+		DaoProcess_RaiseError( proc, NULL, "Invalid JSON object" );
 		return 0;
 	}
 	if( type->mapNames ){
@@ -407,7 +407,7 @@ static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProc
 			k = DaoTuple_ToPath( (DaoTuple*) item, path2, sql, proc, k );
 			break;
 		default :
-			DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+			DaoProcess_RaiseError( proc, NULL, "Invalid JSON object" );
 			break;
 		}
 	}
@@ -429,7 +429,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	for(i=1; i<N; i++) ntable += p[i]->type == DAO_CLASS || p[i]->type == DAO_OBJECT;
 	for(i=1; i<N; i++){
 		if( p[i]->type != DAO_CLASS && p[i]->type != DAO_OBJECT ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			DaoProcess_RaiseError( proc, "Param", "" );
 			return 0;
 		}
 		klass = DaoValue_CastClass( p[i] );
@@ -548,7 +548,7 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handler->classList->size == 0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	fname = DString_New(1);
@@ -617,7 +617,7 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handler->classList->size == 0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	klass = handler->classList->items.pClass[0];
@@ -687,7 +687,7 @@ static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 		table = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
 	}
 	if( p[vid]->type != DAO_LIST || p[vid]->xList.value->size ==0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need non-empty list" );
+		DaoProcess_RaiseError( proc, "Param", "need non-empty list" );
 		return;
 	}
 	values = p[vid]->xList.value;
@@ -711,7 +711,7 @@ static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 			DString_Append( handler->sqlSource, val->xString.value );
 			DString_AppendChars( handler->sqlSource, "'" );
 		}else{
-			DaoProcess_RaiseException( proc, DAO_ERROR, "invalid value in list" );
+			DaoProcess_RaiseError( proc, NULL, "invalid value in list" );
 			break;
 		}
 	}
@@ -762,7 +762,7 @@ static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N )
 	int i, k=0;
 	DaoProcess_PutValue( proc, p[0] );
 	if( p[1]->type != DAO_CLASS || p[2]->type != DAO_CLASS ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	c1 = (DaoClass*) p[1];
@@ -803,7 +803,7 @@ static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N )
 			DString_AppendChars( handler->sqlSource, "." );
 			DString_Append( handler->sqlSource, field2 );
 		}else{
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			DaoProcess_RaiseError( proc, "Param", "" );
 			return;
 		}
 	}

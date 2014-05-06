@@ -255,7 +255,7 @@ static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 	model->conn = PQsetdbLogin( model->base.host->chars, NULL, NULL, NULL,
 			model->base.name->chars, model->base.user->chars, model->base.password->chars );
 	if( PQstatus( model->conn ) != CONNECTION_OK ){
-		DaoProcess_RaiseException( proc, DAO_ERROR, PQerrorMessage( model->conn ) );
+		DaoProcess_RaiseError( proc, NULL, PQerrorMessage( model->conn ) );
 		PQfinish( model->conn );
 		model->conn = NULL;
 		return;
@@ -270,7 +270,7 @@ static void DaoPostgreSQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N 
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	res = PQexec( model->conn, sql->chars );
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK )
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 	DString_Delete( sql );
 	PQclear( res );
 }
@@ -281,7 +281,7 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	PGresult *res;
 	res = PQexec( model->conn, sql->chars );
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 	}
 	DaoProcess_PutInteger( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
 	PQclear( res );
@@ -323,7 +323,7 @@ static void DaoValue_ToJSON( DaoValue *self, DString *json, DaoProcess *proc )
 		DaoTuple_ToJSON( (DaoTuple*) self, json, proc );
 		break;
 	default :
-		DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+		DaoProcess_RaiseError( proc, NULL, "Invalid JSON object" );
 		break;
 	}
 }
@@ -335,7 +335,7 @@ static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 	int i;
 
 	if( type->mapNames != NULL && type->mapNames->size != self->size ){
-		DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+		DaoProcess_RaiseError( proc, NULL, "Invalid JSON object" );
 		return;
 	}
 	if( type->mapNames ){
@@ -427,7 +427,7 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 	handle->res = PQexecPrepared( model->conn, handle->name->chars, k, handle->paramValues,
 			handle->paramLengths, handle->paramFormats, 1 );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 	}
 
 	//printf( "k = %i %i\n", k, mysql_insert_id( handle->model->conn ) );
@@ -490,7 +490,7 @@ static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoPostgreSQLHD_PrepareBindings( handle );
 	handle->res = PQprepare( model->conn, handle->name->chars, str->chars, handle->base.paramCount, handle->paramTypes );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 		return;
 	}
 	for(i=1; i<N; ++i) DaoPostgreSQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
@@ -528,7 +528,7 @@ static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, p[0] );
 	for(i=1; i<N; ++i){
 		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			DaoProcess_RaiseError( proc, "Param", "" );
 			return;
 		}
 		DaoPostgreSQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
@@ -546,13 +546,13 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		if( handle->res ) PQclear( handle->res );
 		handle->res = PQprepare( db->conn, handle->name->chars, sql->chars, handle->base.paramCount, handle->paramTypes );
 		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
+			DaoProcess_RaiseError( proc, "Param", PQerrorMessage( db->conn ) );
 			return;
 		}
 		handle->base.prepared = 1;
 	}
 	if( index >= MAX_PARAM_COUNT ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	DaoPostgreSQLHD_BindValue( handle, value, index, proc );
@@ -571,7 +571,7 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 		if( handle->res ) PQclear( handle->res );
 		handle->res = PQprepare( db->conn, handle->name->chars, sql->chars, handle->base.paramCount, handle->paramTypes );
 		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( db->conn ) );
+			DaoProcess_RaiseError( proc, "Param", PQerrorMessage( db->conn ) );
 			return 0;
 		}
 		handle->base.prepared = 1;
@@ -581,14 +581,14 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 			handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
 	ret = PQresultStatus( handle->res );
 	if( ret != status[0] && ret != status[1] ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, PQerrorMessage( model->conn ) );
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 		return 0;
 	}
 	for(i=1; i<N; i++){
 		if( p[i]->type == DAO_OBJECT ){
 			if( p[i]->xObject.defClass == handle->base.classList->items.pClass[i-1] ) continue;
 		}
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
+		DaoProcess_RaiseError( proc, "Param", "need class instance(s)" );
 		return 0;
 	}
 	return ret;
@@ -626,7 +626,7 @@ static int DaoPostgreSQLHD_RetrieveJSON( DaoProcess *proc, DaoTuple *json, PGres
 			k = DaoPostgreSQLHD_RetrieveJSON( proc, (DaoTuple*) item, res, row, k );
 			break;
 		default :
-			DaoProcess_RaiseException( proc, DAO_ERROR, "Invalid JSON object" );
+			DaoProcess_RaiseError( proc, NULL, "Invalid JSON object" );
 			return k;
 		}
 	}
@@ -753,7 +753,7 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->classList->size == 0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	fname = DString_New(1);
@@ -842,7 +842,7 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->classList->size == 0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	fname = DString_New(1);
@@ -908,7 +908,7 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->classList->size == 0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	if( handle->boolCount ) DString_AppendChars( handle->sqlSource, " AND " );
@@ -1004,7 +1004,7 @@ static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, c
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->classList->size == 0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	if( handle->boolCount ) DString_AppendChars( handle->sqlSource, " AND " );
@@ -1022,7 +1022,7 @@ static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, c
 		DString_AppendChars( handle->sqlSource, "." );
 	}
 	if( DaoList_Size( path ) == 0 ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	DString_Append( handle->sqlSource, field->value );

@@ -117,7 +117,7 @@ static void DaoMySQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 	if( mysql_real_connect( model->mysql, model->base.host->chars, 
 				model->base.user->chars, model->base.password->chars, 
 				NULL, 0, NULL, 0 ) ==NULL ){
-		DaoProcess_RaiseException( proc, DAO_ERROR, mysql_error( model->mysql ) );
+		DaoProcess_RaiseError( proc, NULL, mysql_error( model->mysql ) );
 		mysql_close( model->mysql );
 		model->mysql = NULL;
 		return;
@@ -126,7 +126,7 @@ static void DaoMySQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 		DString_InsertChars( p[0]->xString.value, "create database ", 0, 0, 0 );
 		mysql_query( model->mysql, p[0]->xString.value->chars );
 		if( mysql_select_db( model->mysql, model->base.name->chars ) )
-			DaoProcess_RaiseException( proc, DAO_ERROR, mysql_error( model->mysql ) );
+			DaoProcess_RaiseError( proc, NULL, mysql_error( model->mysql ) );
 	}
 }
 static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
@@ -138,7 +138,7 @@ static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	stmt = mysql_stmt_init( model->mysql );
 	if( mysql_stmt_prepare( stmt, sql->chars, sql->size ) || mysql_stmt_execute( stmt ) )
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_error( model->mysql ) );
+		DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
 	DString_Delete( sql );
 	mysql_stmt_close( stmt );
 }
@@ -148,7 +148,7 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DString *sql = p[1]->xString.value;
 	if( mysql_query( model->mysql, sql->chars ) ){
 		DaoProcess_PutInteger( proc, 0 );
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_error( model->mysql ) );
+		DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
 		return;
 	}
 	DaoProcess_PutInteger( proc, 1 );
@@ -197,9 +197,9 @@ static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoOb
 		}
 	}
 	if( mysql_stmt_bind_param( handle->stmt, handle->parbind ) )
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
+		DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
 	if( mysql_stmt_execute( handle->stmt ) )
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
+		DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
 
 	//printf( "k = %i %i\n", k, mysql_insert_id( handle->model->mysql ) );
 	if( k >=0 ) object->objValues[k]->xInteger.value = mysql_insert_id( handle->model->mysql );
@@ -214,7 +214,7 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//printf( "%s\n", handle->base.sqlSource->chars );
 	if( mysql_stmt_prepare( handle->stmt, str->chars, str->size ) ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
+		DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
 		return;
 	}
 	for(i=1; i<N; ++i) DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
@@ -251,7 +251,7 @@ static void DaoMySQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, p[0] );
 	for(i=1; i<N; ++i){
 		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+			DaoProcess_RaiseError( proc, "Param", "" );
 			return;
 		}
 		DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
@@ -266,12 +266,12 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
 		if( mysql_stmt_prepare( handle->stmt, sql->chars, sql->size ) )
-			DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
+			DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
 		handle->base.prepared = 1;
 	}
 	handle->base.executed = 0;
 	if( index >= MAX_PARAM_COUNT ){
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "" );
+		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
 	switch( value->type ){
@@ -319,12 +319,12 @@ static int DaoMySQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N )
 		if( p[i]->type == DAO_OBJECT ){
 			if( p[i]->xObject.defClass == handle->base.classList->items.pClass[i-1] ) continue;
 		}
-		DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, "need class instance(s)" );
+		DaoProcess_RaiseError( proc, "Param", "need class instance(s)" );
 		return 0;
 	}
 	return 1;
 RaiseException :
-	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
+	DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
 	return 0;
 }
 static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
@@ -396,7 +396,7 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	return 1;
 RaiseException :
-	DaoProcess_RaiseException( proc, DAO_ERROR_PARAM, mysql_stmt_error( handle->stmt ) );
+	DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
 	return 0;
 }
 static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
