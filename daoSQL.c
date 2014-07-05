@@ -100,8 +100,8 @@ void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db )
 	self->database = db;
 	self->sqlSource = DString_New(1);
 	self->buffer = DString_New(1);
-	self->classList = DArray_New(0);
-	self->countList = DArray_New(0);
+	self->classList = DList_New(0);
+	self->countList = DList_New(0);
 	self->setCount = 0;
 	self->boolCount = 0;
 	self->prepared = 0;
@@ -126,8 +126,8 @@ void DaoSQLHandle_Clear( DaoSQLHandle *self )
 	}
 	DString_Delete( self->sqlSource );
 	DString_Delete( self->buffer );
-	DArray_Delete( self->classList );
-	DArray_Delete( self->countList );
+	DList_Delete( self->classList );
+	DList_Delete( self->countList );
 }
 static void DaoSQLHandle_SQLString( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Set( DaoProcess *proc, DaoValue *p[], int N );
@@ -176,7 +176,7 @@ static DaoFuncItem handlerMeths[]=
 	{ DaoSQLHandle_Not,     "Not( self :@SQLHandle )=>@SQLHandle" },
 	{ DaoSQLHandle_LBrace,  "LBrace( self :@SQLHandle )=>@SQLHandle" },
 	{ DaoSQLHandle_RBrace,  "RBrace( self :@SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_Match,   "Match( self :@SQLHandle, table1 :class, table2 :class, field1='', field2='' )=>@SQLHandle" },
+	{ DaoSQLHandle_Match,   "Match( self :@SQLHandle, table1 :class, table2 :class, field1=\"\", field2=\"\" )=>@SQLHandle" },
 	{ DaoSQLHandle_Sort,  "Sort( self :@SQLHandle, field :string, desc=0 )=>@SQLHandle" },
 	{ DaoSQLHandle_Sort,  "Sort( self :@SQLHandle, table :class, field :string, desc=0 )=>@SQLHandle" },
 	{ DaoSQLHandle_Range, "Range( self :@SQLHandle, limit :int, offset=0 )=>@SQLHandle" },
@@ -282,7 +282,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	}
 
 	tabname = DaoSQLDatabase_TableName( klass );
-	DArray_PushBack( self->classList, klass );
+	DList_PushBack( self->classList, klass );
 	DString_AppendChars( self->sqlSource, "INSERT INTO " );
 	DString_Append( self->sqlSource, tabname );
 	DString_AppendChars( self->sqlSource, "(" );
@@ -332,7 +332,7 @@ int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	}
 	klass = (DaoClass*) p[1];
 	tabname = DaoSQLDatabase_TableName( klass );
-	DArray_PushBack( self->classList, klass );
+	DList_PushBack( self->classList, klass );
 	DString_AppendChars( self->sqlSource, "DELETE FROM " );
 	DString_Append( self->sqlSource, tabname );
 	DString_AppendChars( self->sqlSource, " " );
@@ -341,7 +341,7 @@ int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProcess *proc, int k )
 {
 	DaoType *type = self->ctype;
-	DArray *id2name = NULL;
+	DList *id2name = NULL;
 	DString *path2 = NULL;
 	DNode *it;
 	char chs[100] = {0};
@@ -352,9 +352,9 @@ static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProc
 		return 0;
 	}
 	if( type->mapNames ){
-		id2name = DArray_New(0);
+		id2name = DList_New(0);
 		for(it=DMap_First(type->mapNames); it; it=DMap_Next(type->mapNames,it)){
-			DArray_Append( id2name, it->key.pVoid );
+			DList_Append( id2name, it->key.pVoid );
 		}
 	}
 	path2 = DString_New(1);
@@ -411,7 +411,7 @@ static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProc
 			break;
 		}
 	}
-	if( id2name ) DArray_Delete( id2name );
+	if( id2name ) DList_Delete( id2name );
 	DString_Delete( path2 );
 
 	//printf( "%s\n", json->chars );
@@ -441,8 +441,8 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 			i ++;
 			if( p[i]->xInteger.value + 1 < m ) m = p[i]->xInteger.value + 1;
 		}
-		DArray_PushBack( self->classList, klass );
-		DArray_PushBack( self->countList, (void*)(size_t) m );
+		DList_PushBack( self->classList, klass );
+		DList_PushBack( self->countList, (void*)(size_t) m );
 		if( m == 1 ) continue;
 		if( self->classList->size >1 ) DString_AppendChars( self->sqlSource, "," );
 		for(j=1,k=0; j<m; j++){
@@ -506,7 +506,7 @@ int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	for(i=1; i<N; i++){
 		if( i >1 ) DString_AppendChars( self->sqlSource, "," );
 		klass = (DaoClass*) p[i];
-		DArray_PushBack( self->classList, klass );
+		DList_PushBack( self->classList, klass );
 		tabname = DaoSQLDatabase_TableName( klass );
 		DString_Append( self->sqlSource, tabname );
 	}
@@ -678,7 +678,7 @@ static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
 	DString *table = NULL;
-	DArray *values;
+	DList *values;
 	DaoValue *val;
 	int i, fid=1, vid = 2;
 	DaoProcess_PutValue( proc, p[0] );

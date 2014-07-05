@@ -34,7 +34,7 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoMySQLDB_DataModel,"SQLDatabase<MySQL>( name : string, host='', user='', pwd='' )=>SQLDatabase<MySQL>"},
+	{ DaoMySQLDB_DataModel,"SQLDatabase<MySQL>( name : string, host=\"\", user=\"\", pwd=\"\" )=>SQLDatabase<MySQL>"},
 	{ DaoMySQLDB_CreateTable,  "CreateTable( self:SQLDatabase<MySQL>, klass )" },
 //	{ DaoMySQLDB_AlterTable,  "AlterTable( self:SQLDatabase<MySQL>, klass )" },
 	{ DaoMySQLDB_Insert,  "Insert( self:SQLDatabase<MySQL>, object :@T, ... :@T )=>SQLHandle<MySQL>" },
@@ -81,8 +81,8 @@ void DaoMySQLHD_Delete( DaoMySQLHD *self )
 	}
 	DString_Delete( self->base.sqlSource );
 	DString_Delete( self->base.buffer );
-	DArray_Delete( self->base.classList );
-	DArray_Delete( self->base.countList );
+	DList_Delete( self->base.classList );
+	DList_Delete( self->base.countList );
 	free( self );
 }
 static void DaoMySQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
@@ -419,8 +419,6 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	if( sect == NULL ) return;
 	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
 	entry = proc->topFrame->entry;
-	DaoProcess_AcquireCV( proc );
-
 	while(1){
 		if( DaoMySQLHD_Retrieve( proc, p, N ) == 0 ) break;
 
@@ -431,8 +429,6 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		value = proc->stackValues[0];
 		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
 	}
-
-	DaoProcess_ReleaseCV( proc );
 	DaoProcess_PopFrame( proc );
 }
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )

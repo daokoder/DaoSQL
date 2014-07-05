@@ -37,8 +37,8 @@ struct DaoSQLHandle
 {
 	DaoSQLDatabase  *database;
 
-	DArray   *classList;
-	DArray   *countList;
+	DList    *classList;
+	DList    *countList;
 	DString  *sqlSource;
 	DString  *buffer;
 	int  paramCount;

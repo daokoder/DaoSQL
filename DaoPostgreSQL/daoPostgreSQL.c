@@ -8,7 +8,7 @@
 #include"string.h"
 #include"daoPostgreSQL.h"
 
-#ifdef MAC_OSX
+#ifdef MACOSX
 
   #include <libkern/OSByteOrder.h>
  
@@ -61,7 +61,7 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoPostgreSQLDB_DataModel,"SQLDatabase<PostgreSQL>( name : string, host='', user='', pwd='' )=>SQLDatabase<PostgreSQL>"},
+	{ DaoPostgreSQLDB_DataModel,"SQLDatabase<PostgreSQL>( name : string, host=\"\", user=\"\", pwd=\"\" )=>SQLDatabase<PostgreSQL>"},
 	{ DaoPostgreSQLDB_CreateTable,  "CreateTable( self:SQLDatabase<PostgreSQL>, klass )" },
 //	{ DaoPostgreSQLDB_AlterTable,  "AlterTable( self:SQLDatabase<PostgreSQL>, klass )" },
 	{ DaoPostgreSQLDB_Insert,  "Insert( self:SQLDatabase<PostgreSQL>, object :@T, ... :@T )=>SQLHandle<PostgreSQL>" },
@@ -104,8 +104,8 @@ void DaoPostgreSQLHD_Delete( DaoPostgreSQLHD *self )
 	DString_Delete( self->name );
 	DString_Delete( self->base.sqlSource );
 	DString_Delete( self->base.buffer );
-	DArray_Delete( self->base.classList );
-	DArray_Delete( self->base.countList );
+	DList_Delete( self->base.classList );
+	DList_Delete( self->base.countList );
 	free( self );
 }
 static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
@@ -330,7 +330,7 @@ static void DaoValue_ToJSON( DaoValue *self, DString *json, DaoProcess *proc )
 static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 {
 	DaoType *type = self->ctype;
-	DArray *id2name = NULL;
+	DList *id2name = NULL;
 	DNode *it;
 	int i;
 
@@ -339,9 +339,9 @@ static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 		return;
 	}
 	if( type->mapNames ){
-		id2name = DArray_New(0);
+		id2name = DList_New(0);
 		for(it=DMap_First(type->mapNames); it; it=DMap_Next(type->mapNames,it)){
-			DArray_Append( id2name, it->key.pVoid );
+			DList_Append( id2name, it->key.pVoid );
 		}
 	}
 	DString_AppendChar( json, '{' );
@@ -354,7 +354,7 @@ static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 		DaoValue_ToJSON( self->values[i], json, proc );
 	}
 	DString_AppendChar( json, '}' );
-	if( id2name ) DArray_Delete( id2name );
+	if( id2name ) DList_Delete( id2name );
 
 	//printf( "%s\n", json->chars );
 	//DString_SetChars( json, "{ \"name\": \"Firefox\" }" );
@@ -713,7 +713,6 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	if( sect == NULL ) return;
 	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
 	entry = proc->topFrame->entry;
-	DaoProcess_AcquireCV( proc );
 	for(row=0; row < PQntuples( handle->res ); ++row){
 
 		DaoPostgreSQLHD_Retrieve( proc, p, N, row );
@@ -725,7 +724,6 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		value = proc->stackValues[0];
 		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
 	}
-	DaoProcess_ReleaseCV( proc );
 	DaoProcess_PopFrame( proc );
 }
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )

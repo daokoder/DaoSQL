@@ -8,51 +8,51 @@ class Product
 	var attributes : HSTORE;
 }
 
-db = SQLDatabase<PostgreSQL>( 'test_db', 'localhost', 'min' );
+db = SQLDatabase<PostgreSQL>( "test_db", "localhost", "min" );
 
-frame {
-	defer{ recover() }
-	db.Query( 'CREATE EXTENSION hstore;' );
+std.exec {
+	defer(any){ return none }
+	db.Query( "CREATE EXTENSION hstore;" );
 }
 
-frame {
-	defer{ recover() }
-	db.Query( 'DROP TABLE Product;' );
+std.exec {
+	defer(any){ return none }
+	db.Query( "DROP TABLE Product;" );
 }
 
-product = Product::{
+product = Product.{
 	0,
-	'Geek Love: A Novel',
+	"Geek Love: A Novel",
 	{
-		'author' -> 'Katherine Dunn',
-		'pages'   -> '168',
-		'publisher' -> 'unknown',
-		'category' -> 'fiction'
+		"author" -> "Katherine Dunn",
+		"pages"   -> "168",
+		"publisher" -> "unknown",
+		"category" -> "fiction"
 	}
 };
 
-frame {
-	defer{ recover() }
+std.exec {
+	defer(any){ return none }
 	db.CreateTable( Product );
 	db.Insert( product );
-	product.attributes['author'] = 'Someone Someone'
-	product.attributes['pages'] = '268'
+	product.attributes["author"] = "Someone Someone"
+	product.attributes["pages"] = "268"
 	db.Insert( product );
-	product.attributes['author'] = 'Someone Someone'
-	product.attributes['pages'] = '368'
+	product.attributes["author"] = "Someone Someone"
+	product.attributes["pages"] = "368"
 	db.Insert( product );
 }
 
-#db.Update( Product ).Add( 'attributes', 'pages', int, 100 ).QueryOnce();
+#db.Update( Product ).Add( "attributes", "pages", int, 100 ).QueryOnce();
 
 h = db.Select( product ).Where()
-	.HStoreContain( 'attributes', { 'category' -> 'fiction' } )
-	.HStoreLT( Product, 'attributes', 'pages', int, 300 )
-	.HStoreSort( Product, 'attributes', 'pages', int, 1 )
+	.HStoreContain( "attributes", { "category" -> "fiction" } )
+	.HStoreLT( Product, "attributes", "pages", int, 300 )
+	.HStoreSort( Product, "attributes", "pages", int, 1 )
 
 io.writeln( std.about(h) )
 
-# query and store the result into 'product' object:
+# query and store the result into "product" object:
 h.Query( product ){
 	io.writeln( product.id, product.name, product.attributes );
 	return $continue;

@@ -35,7 +35,7 @@ static void DaoSQLiteDB_Query( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoSQLiteDB_DataModel,"SQLDatabase<SQLite>( name :string, host='', user='', pwd='' )=>SQLDatabase<SQLite>"},
+	{ DaoSQLiteDB_DataModel,"SQLDatabase<SQLite>( name :string, host=\"\", user=\"\", pwd=\"\" )=>SQLDatabase<SQLite>"},
 	{ DaoSQLiteDB_CreateTable,  "CreateTable( self :SQLDatabase<SQLite>, klass )" },
 //	{ DaoSQLiteDB_AlterTable,  "AlterTable( self:SQLDatabase<SQLite>, klass )" },
 	{ DaoSQLiteDB_Insert,  "Insert( self :SQLDatabase<SQLite>, object :@T, ... :@T )=>SQLHandle<SQLite>" },
@@ -367,8 +367,6 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	if( sect == NULL ) return;
 	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
 	entry = proc->topFrame->entry;
-	DaoProcess_AcquireCV( proc );
-
 	while(1){
 		k = sqlite3_step( handle->stmt );
 		handle->base.executed = 1;
@@ -387,8 +385,6 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		value = proc->stackValues[0];
 		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
 	}
-
-	DaoProcess_ReleaseCV( proc );
 	DaoProcess_PopFrame( proc );
 	sqlite3_reset( handle->stmt );
 }
