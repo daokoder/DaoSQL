@@ -351,12 +351,12 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
+	DaoVmCode *sect;
 	DaoObject *object;
 	DaoClass  *klass;
 	DaoType *type;
 	DaoValue *value;
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
-	DaoVmCode *sect = DaoGetSectionCode( proc->activeCode );
 	daoint *res = DaoProcess_PutInteger( proc, 0 );
 	const unsigned char *txt;
 	daoint i, j, k = 0;
@@ -364,8 +364,8 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 
 	if( DaoSQLiteHD_TryPrepare( proc, p, N ) == 0 ) return;
 
+	sect = DaoProcess_InitCodeSection( proc, 1 );
 	if( sect == NULL ) return;
-	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
 	entry = proc->topFrame->entry;
 	while(1){
 		k = sqlite3_step( handle->stmt );

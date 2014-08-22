@@ -701,17 +701,17 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	daoint i, j, k, m, entry, row;
 	daoint *count = DaoProcess_PutInteger( proc, 0 );
-	DaoVmCode *sect = DaoGetSectionCode( proc->activeCode );
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
 	DaoPostgreSQLDB *model = handle->model;
 	DaoObject *object;
 	DaoClass  *klass;
 	DaoValue *value;
+	DaoVmCode *sect;
 
 	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
 
+	sect = DaoProcess_InitCodeSection( proc, 1 );
 	if( sect == NULL ) return;
-	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
 	entry = proc->topFrame->entry;
 	for(row=0; row < PQntuples( handle->res ); ++row){
 

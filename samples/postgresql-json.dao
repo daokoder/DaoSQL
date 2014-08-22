@@ -19,33 +19,33 @@ std.exec {
 
 event1 = Event.{
 	"pageview", "1",
-	( page => "/" , #{ extra comma for single-item tuple #} ),
-	( name => "Chrome", os => "Mac", resolution => (x => 1440, y => 900) )
+	( page = "/" , #{ extra comma for single-item tuple #} ),
+	( name = "Chrome", os = "Mac", resolution = (x = 1440, y = 900) )
 }
 event2 = Event.{
 	"pageview", "2",
-	( page => "/", ),
-	( name => "Firefox", os => "Windows", resolution => (x => 1920, y => 1200) )
+	( page = "/", ),
+	( name = "Firefox", os = "Windows", resolution = (x = 1920, y = 1200) )
 }
 event3 = Event.{
 	"pageview", "1",
-	( page => "/account", ),
-	( name => "Chrome", os => "Mac", resolution => (x => 1280, y => 800) )
+	( page = "/account", ),
+	( name = "Chrome", os = "Mac", resolution = (x = 1280, y = 800) )
 }
 event4 = Event.{
 	"purchase", "5",
-	( amount => 10, ),
-	( name => "Firefox", os => "Windows", resolution => (x => 1024, y => 768) )
+	( amount = 10, ),
+	( name = "Firefox", os = "Windows", resolution = (x = 1024, y = 768) )
 }
 event5 = Event.{
 	"purchase", "15",
-	( amount => 200, ),
-	( name => "Firefox", os => "Windows", resolution => (x => 1280, y => 800) )
+	( amount = 200, ),
+	( name = "Firefox", os = "Windows", resolution = (x = 1280, y = 800) )
 }
 event6 = Event.{
 	"purchase", "15",
-	( amount => 500, ),
-	( name => "Firefox", os => "Windows", resolution => (x => 1280, y => 800) )
+	( amount = 500, ),
+	( name = "Firefox", os = "Windows", resolution = (x = 1280, y = 800) )
 }
 
 std.exec {

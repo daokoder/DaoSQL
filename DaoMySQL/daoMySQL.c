@@ -407,7 +407,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoValue *value;
 	char *field;
 	unsigned long *lens;
-	DaoVmCode *sect = DaoGetSectionCode( proc->activeCode );
+	DaoVmCode *sect;
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
 	daoint *res = DaoProcess_PutInteger( proc, 0 );
 	int i, j, k = 0, rc = 0;
@@ -416,8 +416,8 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 
 	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
 
+	sect = DaoProcess_InitCodeSection( proc, 1 );
 	if( sect == NULL ) return;
-	if( DaoProcess_PushSectionFrame( proc ) == NULL ) return;
 	entry = proc->topFrame->entry;
 	while(1){
 		if( DaoMySQLHD_Retrieve( proc, p, N ) == 0 ) break;
