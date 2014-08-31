@@ -76,7 +76,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoSQLiteHD_Insert, "Insert( self :SQLHandle<SQLite>, object :@T, ... :@T ) => int" },
 	{ DaoSQLiteHD_Bind,   "Bind( self :SQLHandle<SQLite>, value, index=0 )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [] => int" },
+	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [=>$break|none] => int" },
 	{ DaoSQLiteHD_QueryOnce, "QueryOnce( self :SQLHandle<SQLite>, ... ) => int" },
 	{ NULL, NULL }
 };
@@ -356,6 +356,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoClass  *klass;
 	DaoType *type;
 	DaoValue *value;
+	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
 	daoint *res = DaoProcess_PutInteger( proc, 0 );
 	const unsigned char *txt;
@@ -367,6 +368,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	sect = DaoProcess_InitCodeSection( proc, 1 );
 	if( sect == NULL ) return;
 	entry = proc->topFrame->entry;
+	memcpy( params, p, N*sizeof(DaoValue*) );
 	while(1){
 		k = sqlite3_step( handle->stmt );
 		handle->base.executed = 1;
@@ -376,14 +378,13 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		}
 		if( sqlite3_data_count( handle->stmt ) ==0 ) break;
 
-		DaoSQLiteHD_Retrieve( proc, p, N );
+		DaoSQLiteHD_Retrieve( proc, params, N );
 
 		proc->topFrame->entry = entry;
 		DaoProcess_Execute( proc );
 		if( proc->status == DAO_PROCESS_ABORTED ) break;
 		*res += 1;
-		value = proc->stackValues[0];
-		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
+		if( proc->stackValues[0]->type == DAO_ENUM ) break;
 	}
 	DaoProcess_PopFrame( proc );
 	sqlite3_reset( handle->stmt );

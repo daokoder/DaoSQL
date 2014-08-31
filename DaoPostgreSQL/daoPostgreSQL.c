@@ -139,7 +139,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object :@T, ... :@T ) => int" },
 	{ DaoPostgreSQLHD_Bind, "Bind( self :SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [] => int" },
+	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [=>$break|none] => int" },
 	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self :SQLHandle<PostgreSQL>, ... ) => int" },
 
 	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
@@ -703,6 +703,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	daoint *count = DaoProcess_PutInteger( proc, 0 );
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
 	DaoPostgreSQLDB *model = handle->model;
+	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoObject *object;
 	DaoClass  *klass;
 	DaoValue *value;
@@ -713,16 +714,16 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	sect = DaoProcess_InitCodeSection( proc, 1 );
 	if( sect == NULL ) return;
 	entry = proc->topFrame->entry;
+	memcpy( params, p, N*sizeof(DaoValue*) );
 	for(row=0; row < PQntuples( handle->res ); ++row){
 
-		DaoPostgreSQLHD_Retrieve( proc, p, N, row );
+		DaoPostgreSQLHD_Retrieve( proc, params, N, row );
 
 		proc->topFrame->entry = entry;
 		DaoProcess_Execute( proc );
 		if( proc->status == DAO_PROCESS_ABORTED ) break;
 		*count += 1;
-		value = proc->stackValues[0];
-		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
+		if( proc->stackValues[0]->type == DAO_ENUM ) break;
 	}
 	DaoProcess_PopFrame( proc );
 }

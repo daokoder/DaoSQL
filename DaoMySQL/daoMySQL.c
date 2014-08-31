@@ -94,7 +94,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoMySQLHD_Insert, "Insert( self:SQLHandle<MySQL>, object :@T, ... :@T ) => int" },
 	{ DaoMySQLHD_Bind, "Bind( self:SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
-	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) [] => int" },
+	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) [=>$break|none] => int" },
 	{ DaoMySQLHD_QueryOnce, "QueryOnce( self:SQLHandle<MySQL>, ... ) => int" },
 	{ NULL, NULL }
 };
@@ -408,6 +408,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	char *field;
 	unsigned long *lens;
 	DaoVmCode *sect;
+	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
 	daoint *res = DaoProcess_PutInteger( proc, 0 );
 	int i, j, k = 0, rc = 0;
@@ -419,15 +420,15 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	sect = DaoProcess_InitCodeSection( proc, 1 );
 	if( sect == NULL ) return;
 	entry = proc->topFrame->entry;
+	memcpy( params, p, N*sizeof(DaoValue*) );
 	while(1){
-		if( DaoMySQLHD_Retrieve( proc, p, N ) == 0 ) break;
+		if( DaoMySQLHD_Retrieve( proc, params, N ) == 0 ) break;
 
 		proc->topFrame->entry = entry;
 		DaoProcess_Execute( proc );
 		if( proc->status == DAO_PROCESS_ABORTED ) break;
 		*res += 1;
-		value = proc->stackValues[0];
-		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
+		if( proc->stackValues[0]->type == DAO_ENUM ) break;
 	}
 	DaoProcess_PopFrame( proc );
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
