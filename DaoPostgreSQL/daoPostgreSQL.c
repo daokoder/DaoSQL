@@ -139,7 +139,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object :@T, ... :@T ) => int" },
 	{ DaoPostgreSQLHD_Bind, "Bind( self :SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [=>$break|none] => int" },
+	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [] => int" },
 	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self :SQLHandle<PostgreSQL>, ... ) => int" },
 
 	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
@@ -715,6 +715,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	if( sect == NULL ) return;
 	entry = proc->topFrame->entry;
 	memcpy( params, p, N*sizeof(DaoValue*) );
+	handle->base.stopQuery = 0;
 	for(row=0; row < PQntuples( handle->res ); ++row){
 
 		DaoPostgreSQLHD_Retrieve( proc, params, N, row );
@@ -723,7 +724,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_Execute( proc );
 		if( proc->status == DAO_PROCESS_ABORTED ) break;
 		*count += 1;
-		if( proc->stackValues[0]->type == DAO_ENUM ) break;
+		if( handle->base.stopQuery ) break;
 	}
 	DaoProcess_PopFrame( proc );
 }

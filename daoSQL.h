@@ -46,6 +46,7 @@ struct DaoSQLHandle
 	int  setCount;
 	int  prepared;
 	int  executed;
+	int  stopQuery;
 	unsigned long  reslen;
 
 	DaoType  *partypes[ MAX_PARAM_COUNT ];

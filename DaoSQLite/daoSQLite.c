@@ -76,7 +76,7 @@ static DaoFuncItem handleMeths[]=
 {
 	{ DaoSQLiteHD_Insert, "Insert( self :SQLHandle<SQLite>, object :@T, ... :@T ) => int" },
 	{ DaoSQLiteHD_Bind,   "Bind( self :SQLHandle<SQLite>, value, index=0 )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [=>$break|none] => int" },
+	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [] => int" },
 	{ DaoSQLiteHD_QueryOnce, "QueryOnce( self :SQLHandle<SQLite>, ... ) => int" },
 	{ NULL, NULL }
 };
@@ -369,6 +369,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	if( sect == NULL ) return;
 	entry = proc->topFrame->entry;
 	memcpy( params, p, N*sizeof(DaoValue*) );
+	handle->base.stopQuery = 0;
 	while(1){
 		k = sqlite3_step( handle->stmt );
 		handle->base.executed = 1;
@@ -384,7 +385,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_Execute( proc );
 		if( proc->status == DAO_PROCESS_ABORTED ) break;
 		*res += 1;
-		if( proc->stackValues[0]->type == DAO_ENUM ) break;
+		if( handle->base.stopQuery ) break;
 	}
 	DaoProcess_PopFrame( proc );
 	sqlite3_reset( handle->stmt );

@@ -107,6 +107,7 @@ void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db )
 	self->prepared = 0;
 	self->executed = 0;
 	self->paramCount = 0;
+	self->stopQuery = 0;
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		self->pardata[i] = DString_New(1);
 		self->resdata[i] = DString_New(1);
@@ -148,6 +149,7 @@ static void DaoSQLHandle_RBrace( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handlerMeths[]=
 {
@@ -180,6 +182,7 @@ static DaoFuncItem handlerMeths[]=
 	{ DaoSQLHandle_Sort,  "Sort( self :@SQLHandle, field :string, desc=0 )=>@SQLHandle" },
 	{ DaoSQLHandle_Sort,  "Sort( self :@SQLHandle, table :class, field :string, desc=0 )=>@SQLHandle" },
 	{ DaoSQLHandle_Range, "Range( self :@SQLHandle, limit :int, offset=0 )=>@SQLHandle" },
+	{ DaoSQLHandle_Stop,  "Stop( self :@SQLHandle )" },
 	{ NULL, NULL }
 };
 
@@ -844,6 +847,11 @@ static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N )
 		DaoValue_GetString( p[2], handler->buffer );
 		DString_Append( handler->sqlSource, handler->buffer );
 	}
+}
+static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	handler->stopQuery = 1;
 }
 
 int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
