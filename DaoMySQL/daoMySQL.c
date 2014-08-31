@@ -430,6 +430,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		if( value == NULL || value->type != DAO_ENUM || value->xEnum.value != 0 ) break;
 	}
 	DaoProcess_PopFrame( proc );
+	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
