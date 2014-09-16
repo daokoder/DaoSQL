@@ -305,15 +305,11 @@ static void DaoValue_ToJSON( DaoValue *self, DString *json, DaoProcess *proc )
 		DString_AppendChars( json, "null" );
 		break;
 	case DAO_INTEGER :
-		sprintf( chs, "%" DAO_INT_FORMAT, self->xInteger.value );
+		sprintf( chs, "%lli", self->xInteger.value );
 		DString_AppendChars( json, chs );
 		break;
 	case DAO_FLOAT :
 		sprintf( chs, "%g", self->xFloat.value );
-		DString_AppendChars( json, chs );
-		break;
-	case DAO_DOUBLE :
-		sprintf( chs, "%g", self->xDouble.value );
 		DString_AppendChars( json, chs );
 		break;
 	case DAO_STRING :
@@ -377,15 +373,9 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		break;
 	case DAO_FLOAT   :
 		self->paramFormats[index] = 1;
-		self->paramLengths[index] = sizeof(uint32_t);
-		self->paramValues[index] = (char*) & self->paramInts32[index];
-		self->paramInts32[index] = htobe32(*(uint32_t*) &value->xFloat.value );
-		break;
-	case DAO_DOUBLE  :
-		self->paramFormats[index] = 1;
 		self->paramLengths[index] = sizeof(uint64_t);
 		self->paramValues[index] = (char*) & self->paramInts64[index];
-		self->paramInts64[index] = htobe64(*(uint64_t*) &value->xDouble.value );
+		self->paramInts64[index] = htobe64(*(uint64_t*) &value->xFloat.value );
 		break;
 	case DAO_STRING  :
 		mbstring = value->xString.value;
@@ -455,9 +445,6 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			self->paramTypes[k] = INT4OID;
 			break;
 		case DAO_FLOAT :
-			self->paramTypes[k] = FLOAT4OID;
-			break;
-		case DAO_DOUBLE :
 			self->paramTypes[k] = FLOAT8OID;
 			break;
 		case DAO_STRING :
@@ -609,13 +596,9 @@ static int DaoPostgreSQLHD_RetrieveJSON( DaoProcess *proc, DaoTuple *json, PGres
 		case DAO_INTEGER :
 			item->xInteger.value = ntohl(*((uint32_t *) pdata));
 			break;
-		case DAO_FLOAT   :
-			ivalue32 = be32toh( *(uint32_t*) pdata );
-			item->xFloat.value = *(float*) & ivalue32;
-			break;
-		case DAO_DOUBLE  :
+		case DAO_FLOAT  :
 			ivalue64 = be64toh( *(uint64_t*) pdata );
-			item->xDouble.value = *(double*) & ivalue64;
+			item->xFloat.value = *(double*) & ivalue64;
 			break;
 		case DAO_STRING  :
 			len = PQgetlength( res, row, k-1 );
@@ -663,13 +646,9 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 			case DAO_INTEGER :
 				value->xInteger.value = ntohl(*((uint32_t *) pdata));
 				break;
-			case DAO_FLOAT   :
-				ivalue32 = be32toh( *(uint32_t*) pdata );
-				value->xFloat.value = *(float*) & ivalue32;
-				break;
-			case DAO_DOUBLE  :
+			case DAO_FLOAT  :
 				ivalue64 = be64toh( *(uint64_t*) pdata );
-				value->xDouble.value = *(double*) & ivalue64;
+				value->xFloat.value = *(double*) & ivalue64;
 				break;
 			case DAO_STRING  :
 				len = PQgetlength( handle->res, row, k-1 );
@@ -700,7 +679,7 @@ static int status_ok[2] = { PGRES_COMMAND_OK, PGRES_TUPLES_OK };
 static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	daoint i, j, k, m, entry, row;
-	daoint *count = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *count = DaoProcess_PutInteger( proc, 0 );
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
 	DaoPostgreSQLDB *model = handle->model;
 	DaoValue *params[DAO_MAX_PARAM+1];
@@ -731,7 +710,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
-	daoint *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
 	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
 	if( PQntuples( handle->res ) ){
 		DaoPostgreSQLHD_Retrieve( proc, p, N, 0 );
@@ -825,8 +804,7 @@ static void DString_AppendCastAs( DString *sql, DaoType *cast )
 	DString_AppendChars( sql, " AS " );
 	switch( cast->tid ){
 	case DAO_INTEGER : DString_AppendChars( sql, " INTEGER) " ); break;
-	case DAO_FLOAT   : DString_AppendChars( sql, " FLOAT) " ); break;
-	case DAO_DOUBLE  : DString_AppendChars( sql, " DOUBLE) " ); break;
+	case DAO_FLOAT   : DString_AppendChars( sql, " DOUBLE) " ); break;
 	case DAO_STRING  : DString_AppendChars( sql, " TEXT) " ); break;
 	}
 }
@@ -985,7 +963,7 @@ static void DString_AppendPath( DString *self, DaoList *path )
 		DString_AppendChars( self, "->" );
 		if( i+1 == n ) DString_AppendChars( self, ">" );
 		if( item->type == DAO_INTEGER ){
-			sprintf( chs, "%" DAO_INT_FORMAT, item->xInteger.value );
+			sprintf( chs, "%lli", item->xInteger.value );
 			DString_AppendChars( self, chs );
 		}else{
 			DString_AppendSQL( self, item->xString.value, 1, "\'" );
@@ -1151,9 +1129,9 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	DaoVmSpace_LinkModule( vms, ns, "sql" );
-	DaoNamespace_TypeDefine( ns, "int", "PostgreSQL" );
-	DaoNamespace_TypeDefine( ns, "map<string,string>", "HSTORE" );
-	DaoNamespace_TypeDefine( ns, "tuple<...>", "JSON" );
+	DaoNamespace_DefineType( ns, "int", "PostgreSQL" );
+	DaoNamespace_DefineType( ns, "map<string,string>", "HSTORE" );
+	DaoNamespace_DefineType( ns, "tuple<...>", "JSON" );
 	dao_type_postgresql_database = DaoNamespace_WrapType( ns, & DaoPostgreSQLDB_Typer, 1 );
 	dao_type_postgresql_handle = DaoNamespace_WrapType( ns, & DaoPostgreSQLHD_Typer, 1 );
 	return 0;

@@ -389,13 +389,6 @@ static int DaoTuple_ToPath( DaoTuple *self, DString *path, DString *sql, DaoProc
 			if( k ) DString_AppendChar( sql, ',' );
 			DString_AppendChars( sql, "CAST(" );
 			DString_Append( sql, path2 );
-			DString_AppendChars( sql, " AS FLOAT)" );
-			k += 1;
-			break;
-		case DAO_DOUBLE :
-			if( k ) DString_AppendChar( sql, ',' );
-			DString_AppendChars( sql, "CAST(" );
-			DString_Append( sql, path2 );
 			DString_AppendChars( sql, " AS DOUBLE)" );
 			k += 1;
 			break;
@@ -706,7 +699,7 @@ static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 		val = values->items.pValue[i];
 		if( val->type ==0 ){
 			DString_AppendChars( handler->sqlSource, "NULL" );
-		}else if( val->type <= DAO_DOUBLE ){
+		}else if( val->type <= DAO_FLOAT ){
 			DaoValue_GetString( val, handler->buffer );
 			DString_Append( handler->sqlSource, handler->buffer );
 		}else if( val->type == DAO_STRING ){
@@ -859,29 +852,29 @@ int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
 
-	DaoNamespace_TypeDefine( ns, "int", "INT" );
-	DaoNamespace_TypeDefine( ns, "int", "TINYINT" );
-	DaoNamespace_TypeDefine( ns, "int", "SMALLINT" );
-	DaoNamespace_TypeDefine( ns, "int", "MEDIUMINT" );
-	DaoNamespace_TypeDefine( ns, "int", "INT_PRIMARY_KEY" );
-	DaoNamespace_TypeDefine( ns, "int", "INT_PRIMARY_KEY_AUTO_INCREMENT" );
-	DaoNamespace_TypeDefine( ns, "double", "BIGINT" );
-	DaoNamespace_TypeDefine( ns, "string", "TEXT" );
-	DaoNamespace_TypeDefine( ns, "string", "MEDIUMTEXT" );
-	DaoNamespace_TypeDefine( ns, "string", "LONGTEXT" );
-	DaoNamespace_TypeDefine( ns, "string", "BLOB" );
-	DaoNamespace_TypeDefine( ns, "string", "MEDIUMBLOB" );
-	DaoNamespace_TypeDefine( ns, "string", "LONGBLOB" );
-	DaoNamespace_TypeDefine( ns, "string", "CHAR10" );
-	DaoNamespace_TypeDefine( ns, "string", "CHAR20" );
-	DaoNamespace_TypeDefine( ns, "string", "CHAR50" );
-	DaoNamespace_TypeDefine( ns, "string", "CHAR100" );
-	DaoNamespace_TypeDefine( ns, "string", "CHAR200" );
-	DaoNamespace_TypeDefine( ns, "string", "VARCHAR10" );
-	DaoNamespace_TypeDefine( ns, "string", "VARCHAR20" );
-	DaoNamespace_TypeDefine( ns, "string", "VARCHAR50" );
-	DaoNamespace_TypeDefine( ns, "string", "VARCHAR100" );
-	DaoNamespace_TypeDefine( ns, "string", "VARCHAR200" );
+	DaoNamespace_DefineType( ns, "int", "INT" );
+	DaoNamespace_DefineType( ns, "int", "TINYINT" );
+	DaoNamespace_DefineType( ns, "int", "SMALLINT" );
+	DaoNamespace_DefineType( ns, "int", "MEDIUMINT" );
+	DaoNamespace_DefineType( ns, "int", "INT_PRIMARY_KEY" );
+	DaoNamespace_DefineType( ns, "int", "INT_PRIMARY_KEY_AUTO_INCREMENT" );
+	DaoNamespace_DefineType( ns, "float",  "BIGINT" );
+	DaoNamespace_DefineType( ns, "string", "TEXT" );
+	DaoNamespace_DefineType( ns, "string", "MEDIUMTEXT" );
+	DaoNamespace_DefineType( ns, "string", "LONGTEXT" );
+	DaoNamespace_DefineType( ns, "string", "BLOB" );
+	DaoNamespace_DefineType( ns, "string", "MEDIUMBLOB" );
+	DaoNamespace_DefineType( ns, "string", "LONGBLOB" );
+	DaoNamespace_DefineType( ns, "string", "CHAR10" );
+	DaoNamespace_DefineType( ns, "string", "CHAR20" );
+	DaoNamespace_DefineType( ns, "string", "CHAR50" );
+	DaoNamespace_DefineType( ns, "string", "CHAR100" );
+	DaoNamespace_DefineType( ns, "string", "CHAR200" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR10" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR20" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR50" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR100" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR200" );
 
 	DaoNamespace_WrapTypes( ns, typers );
 

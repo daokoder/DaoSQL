@@ -183,10 +183,6 @@ static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoOb
 				bind->buffer_type = MYSQL_TYPE_DOUBLE;
 				*(double*) pbuf = value->xFloat.value;
 				break;
-			case DAO_DOUBLE  :
-				bind->buffer_type = MYSQL_TYPE_DOUBLE;
-				*(double*) pbuf = value->xDouble.value;
-				break;
 			case DAO_STRING  :
 				DString_SetBytes( handle->base.pardata[i-1], value->xString.value->chars, value->xString.value->size );
 				bind->buffer_type = MYSQL_TYPE_STRING;
@@ -286,10 +282,6 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 			handle->parbind[ index ].buffer_type = MYSQL_TYPE_DOUBLE;
 			*(double*)handle->base.pardata[index]->chars = value->xFloat.value;
 			break;
-		case DAO_DOUBLE :
-			handle->parbind[ index ].buffer_type = MYSQL_TYPE_DOUBLE;
-			*(double*)handle->base.pardata[index]->chars = value->xDouble.value;
-			break;
 		case DAO_STRING :
 			handle->parbind[ index ].buffer_type = MYSQL_TYPE_STRING;
 			DString_SetChars( handle->base.pardata[index], DString_GetData( value->xString.value ) );
@@ -369,11 +361,6 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
 				value->xFloat.value =  *(double*)handle->base.resdata[0]->chars;
 				break;
-			case DAO_DOUBLE  :
-				handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
-				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-				value->xDouble.value =  *(double*)handle->base.resdata[0]->chars;
-				break;
 			case DAO_STRING  :
 				handle->resbind[0].buffer_type = MYSQL_TYPE_STRING;
 				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
@@ -410,7 +397,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoVmCode *sect;
 	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
-	daoint *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
 	int i, j, k = 0, rc = 0;
 	int pitch, offset;
 	int entry;
@@ -437,7 +424,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
-	daoint *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
 	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
 	*res = DaoMySQLHD_Retrieve( proc, p, N );
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
@@ -446,7 +433,7 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	DaoVmSpace_LinkModule( vms, ns, "sql" );
-	DaoNamespace_TypeDefine( ns, "int", "MySQL" );
+	DaoNamespace_DefineType( ns, "int", "MySQL" );
 	dao_type_mysql_database = DaoNamespace_WrapType( ns, & DaoMySQLDB_Typer, 1 );
 	dao_type_mysql_handle = DaoNamespace_WrapType( ns, & DaoMySQLHD_Typer, 1 );
 	return 0;

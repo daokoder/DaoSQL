@@ -168,9 +168,6 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 		case DAO_FLOAT   :
 			k = sqlite3_bind_double( stmt, i, value->xFloat.value );
 			break;
-		case DAO_DOUBLE  :
-			k = sqlite3_bind_double( stmt, i, value->xDouble.value );
-			break;
 		case DAO_STRING  :
 			k = sqlite3_bind_text( stmt, i, value->xString.value->chars, value->xString.value->size, SQLITE_TRANSIENT );
 			break;
@@ -268,9 +265,6 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		case DAO_FLOAT :
 			k = sqlite3_bind_double( stmt, index, value->xFloat.value );
 			break;
-		case DAO_DOUBLE :
-			k = sqlite3_bind_double( stmt, index, value->xDouble.value );
-			break;
 		case DAO_STRING :
 			k = sqlite3_bind_text( stmt, index, value->xString.value->chars, value->xString.value->size, SQLITE_TRANSIENT );
 			break;
@@ -334,9 +328,6 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 			case DAO_FLOAT   :
 				value->xFloat.value = sqlite3_column_double( handle->stmt, k );
 				break;
-			case DAO_DOUBLE  :
-				value->xDouble.value = sqlite3_column_double( handle->stmt, k );
-				break;
 			case DAO_STRING  :
 				DString_Clear( value->xString.value );
 				txt = sqlite3_column_text( handle->stmt, k );
@@ -358,7 +349,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoValue *value;
 	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
-	daoint *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
 	const unsigned char *txt;
 	daoint i, j, k = 0;
 	daoint m, count, entry;
@@ -393,7 +384,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
-	daoint *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
 	int k;
 
 	if( DaoSQLiteHD_TryPrepare( proc, p, N ) == 0 ) return;
@@ -411,7 +402,7 @@ static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	DaoVmSpace_LinkModule( vms, ns, "sql" );
-	DaoNamespace_TypeDefine( ns, "int", "SQLite" );
+	DaoNamespace_DefineType( ns, "int", "SQLite" );
 	dao_type_sqlite3_database = DaoNamespace_WrapType( ns, & DaoSQLiteDB_Typer, 1 );
 	dao_type_sqlite3_handle = DaoNamespace_WrapType( ns, & DaoSQLiteHD_Typer, 1 );
 	return 0;
