@@ -19,14 +19,14 @@ if( DaoMake::IsPlatform( "MACOSX" ) ) project.AddDefinition( "__BSD__" )
 daosql_objs = project.AddObjects( { "daoSQL.c" }, { "daoSQL.h" } )
 daosql_dll = project.AddSharedLibrary( "dao_sql", daosql_objs )
 
-project.Install( daovm.GetPath( "MOD-PATH" ), daosql_dll );
+project.Install( DaoMake::Variables[ "INSTALL_MOD" ], daosql_dll );
 
 if( sqlite != none ){
 	sqlite_objs = project.AddObjects( { "DaoSQLite/daoSQLite.c" }, { "DaoSQLite/daoSQLite.h" } )
 	sqlite_dll = project.AddSharedLibrary( "dao_sqlite", sqlite_objs )
 	sqlite_dll.UseSharedLibrary( sqlite )
 	sqlite_dll.UseSharedLibrary( project, "dao_sql" )
-	project.Install( daovm.GetPath( "MOD-PATH" ), sqlite_dll );
+	project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_dll );
 }
 
 if( mysql != none ){
@@ -34,7 +34,7 @@ if( mysql != none ){
 	mysql_dll  = project.AddSharedLibrary( "dao_mysql", mysql_objs )
 	mysql_dll.UseSharedLibrary( mysql )
 	mysql_dll.UseSharedLibrary( project, "dao_sql" )
-	project.Install( daovm.GetPath( "MOD-PATH" ), mysql_dll );
+	project.Install( DaoMake::Variables[ "INSTALL_MOD" ], mysql_dll );
 }
 
 if( libpq != none ){
@@ -43,11 +43,11 @@ if( libpq != none ){
 	libpq_dll  = project.AddSharedLibrary( "dao_postgresql", libpq_objs )
 	libpq_dll.UseSharedLibrary( libpq )
 	libpq_dll.UseSharedLibrary( project, "dao_sql" )
-	project.Install( daovm.GetPath( "MOD-PATH" ), libpq_dll );
+	project.Install( DaoMake::Variables[ "INSTALL_MOD" ], libpq_dll );
 }
 
 
 
 #project.GenerateFinder( $TRUE );
-#project.Install( daovm.GetPath( "MOD-PATH" ), sqlite_dll );
-#project.Install( daovm.GetPath( "MOD-PATH" ), mysql_dll );
+#project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_dll );
+#project.Install( DaoMake::Variables[ "INSTALL_MOD" ], mysql_dll );
