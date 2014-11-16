@@ -408,7 +408,8 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 	DString *mbstring;
 	int i, k = -1;
 	for(i=1,k=0; i<klass->objDataName->size; i++){
-		char *tpname = vars[i]->dtype->name->chars;
+		DaoType *type = DaoType_GetBaseType( vars[i]->dtype );
+		char *tpname = type->name->chars;
 		DaoValue *value = object->objValues[i];
 		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) continue;
 		DaoPostgreSQLHD_BindValue( handle, value, k++, proc );
@@ -634,7 +635,7 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 		object = (DaoObject*) p[i];
 		klass = object->defClass;
 		for(j=1, m = handle->base.countList->items.pInt[i-1]; j<m; j++){
-			type = klass->instvars->items.pVar[j]->dtype;
+			type = DaoType_GetBaseType( klass->instvars->items.pVar[j]->dtype );
 			value = object->objValues[j];
 			pdata = PQgetvalue( handle->res, row, k++ );
 			if( pdata == NULL ) continue;

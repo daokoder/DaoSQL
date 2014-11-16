@@ -149,7 +149,8 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 	char *tpname;
 	int i, k, key = 0;
 	for(i=1; i<klass->objDataName->size; i++){
-		tpname = vars[i]->dtype->name->chars;
+		DaoType *type = DaoType_GetBaseType( vars[i]->dtype );
+		tpname = type->name->chars;
 		value = object->objValues[i];
 		//fprintf( stderr, "%3i: %s %s\n", i, klass->objDataName->items.pString[i]->chars, tpname );
 		if( strstr( tpname, "INT_PRIMARY_KEY" ) == tpname ){
@@ -311,7 +312,7 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 		klass = object->defClass;
 		m = handle->base.countList->items.pInt[i-1];
 		for(j=1; j<m; j++){
-			type = klass->instvars->items.pVar[j]->dtype;
+			type = DaoType_GetBaseType( klass->instvars->items.pVar[j]->dtype );
 			value = object->objValues[j];
 			if( value == NULL || value->type != type->tid ){
 				DaoValue_Move( type->value, & object->objValues[j], type );

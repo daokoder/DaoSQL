@@ -225,8 +225,9 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 	DString_Append( sql, tabname );
 	DString_AppendChars( sql, "(" );
 	for(i=1; i<klass->objDataName->size; i++){
+		DaoType *type = DaoType_GetBaseType( vars[i]->dtype );
 		if( i >1 ) DString_AppendChars( sql, "," );
-		tpname = vars[i]->dtype->name->chars;
+		tpname = type->name->chars;
 		DString_AppendChars( sql, "\n" );
 		DString_Append( sql, names[i] );
 		DString_AppendChars( sql, "  " );
@@ -291,7 +292,8 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString_AppendChars( self->sqlSource, "(" );
 	for(i=1,k=0; i<klass->objDataName->size; i++){
 		if( self->database->type == DAO_POSTGRESQL ){
-			char *tpname = klass->instvars->items.pVar[i]->dtype->name->chars;
+			DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[i]->dtype );
+			char *tpname = type->name->chars;
 			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
 		if( k++ ) DString_AppendChars( self->sqlSource, "," );
@@ -300,9 +302,9 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	self->paramCount = 0;
 	DString_AppendChars( self->sqlSource, ") VALUES(" );
 	for(i=1,k=0; i<klass->objDataName->size; i++){
-		DaoType *type = klass->instvars->items.pVar[i]->dtype;
+		DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[i]->dtype );
 		if( self->database->type == DAO_POSTGRESQL ){
-			char *tpname = klass->instvars->items.pVar[i]->dtype->name->chars;
+			char *tpname = type->name->chars;
 			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
 		self->partypes[self->paramCount++] = type;
@@ -442,7 +444,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		if( m == 1 ) continue;
 		if( self->classList->size >1 ) DString_AppendChars( self->sqlSource, "," );
 		for(j=1,k=0; j<m; j++){
-			DaoType *type = klass->instvars->items.pVar[j]->dtype;
+			DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[j]->dtype );
 			if( type->tid == DAO_MAP && self->database->type == DAO_POSTGRESQL ){
 				DaoMap *keys = object ? (DaoMap*) object->objValues[j] : NULL ;
 				DNode *it = keys ? DaoMap_First(keys) : NULL;
