@@ -727,7 +727,7 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 	DaoValue *field = p[1];
 	DaoValue *value = p[2];
 	DaoClass *klass;
-	DaoType **type2;
+	DaoValue *data;
 	DaoType *type;
 	int status = 0;
 
@@ -741,8 +741,12 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 	if( handle->setCount ) DString_AppendChars( handle->sqlSource, ", " );
 	DString_Assign( fname, field->xString.value );
 
-	type2 = DaoClass_GetDataType( klass, fname, & status, NULL );
-	type = type2 ? *type2 : NULL;
+	data = DaoClass_GetData( klass, fname, NULL );
+	if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
+		DaoProcess_RaiseError( proc, "Param", "" );
+		return;
+	}
+	type = data->xVar.dtype;
 
 	if( p[1]->type == DAO_CLASS ){
 		field = p[2];

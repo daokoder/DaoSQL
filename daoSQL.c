@@ -540,9 +540,8 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 	DaoValue *field = p[1];
 	DaoValue *value = p[2];
 	DaoClass *klass;
-	DaoType **type2;
+	DaoValue *data;
 	DaoType *type;
-	int status = 0;
 
 	DaoProcess_PutValue( proc, p[0] );
 	if( handler->classList->size == 0 ){
@@ -554,8 +553,12 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 	if( handler->setCount ) DString_AppendChars( handler->sqlSource, ", " );
 	DString_Assign( fname, field->xString.value );
 
-	type2 = DaoClass_GetDataType( klass, fname, & status, NULL );
-	type = type2 ? *type2 : NULL;
+	data = DaoClass_GetData( klass, fname, NULL );
+	if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
+		DaoProcess_RaiseError( proc, "Param", "" );
+		return;
+	}
+	type = data->xVar.dtype;
 
 	if( p[1]->type == DAO_CLASS ){
 		field = p[2];
@@ -634,9 +637,12 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 		DaoValue_GetString( value, field->xString.value );
 		DString_AppendSQL( handler->sqlSource, field->xString.value, value->type == DAO_STRING, "\'" );
 	}else{
-		int status = 0;
-		DaoType **type = DaoClass_GetDataType( klass, field->xString.value, & status, NULL );
-		handler->partypes[handler->paramCount++] = type ? *type : NULL;
+		DaoValue *data = DaoClass_GetData( klass, field->xString.value, NULL );
+		if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
+			DaoProcess_RaiseError( proc, "Param", "" );
+			return;
+		}
+		handler->partypes[handler->paramCount++] = data->xVar.dtype;
 		if( handler->database->type == DAO_POSTGRESQL ){
 			char buf[20];
 			sprintf( buf, "$%i", handler->paramCount );
