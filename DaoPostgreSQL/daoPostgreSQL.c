@@ -61,14 +61,14 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoPostgreSQLDB_DataModel,"SQLDatabase<PostgreSQL>( name : string, host=\"\", user=\"\", pwd=\"\" )=>SQLDatabase<PostgreSQL>"},
-	{ DaoPostgreSQLDB_CreateTable,  "CreateTable( self:SQLDatabase<PostgreSQL>, klass )" },
-//	{ DaoPostgreSQLDB_AlterTable,  "AlterTable( self:SQLDatabase<PostgreSQL>, klass )" },
-	{ DaoPostgreSQLDB_Insert,  "Insert( self:SQLDatabase<PostgreSQL>, object :@T, ... :@T )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLDB_DeleteRow, "Delete( self:SQLDatabase<PostgreSQL>, object )=>SQLHandle<PostgreSQL>"},
-	{ DaoPostgreSQLDB_Select, "Select( self:SQLDatabase<PostgreSQL>, object,...)=>SQLHandle<PostgreSQL>"},
-	{ DaoPostgreSQLDB_Update, "Update( self:SQLDatabase<PostgreSQL>, object,...)=>SQLHandle<PostgreSQL>"},
-	{ DaoPostgreSQLDB_Query,  "Query( self:SQLDatabase<PostgreSQL>, sql : string ) => int" },
+	{ DaoPostgreSQLDB_DataModel,"SQLDatabase<PostgreSQL>( name: string, host='', user='', pwd='' )=>SQLDatabase<PostgreSQL>"},
+	{ DaoPostgreSQLDB_CreateTable,  "CreateTable( self: SQLDatabase<PostgreSQL>, klass )" },
+//	{ DaoPostgreSQLDB_AlterTable,  "AlterTable( self: SQLDatabase<PostgreSQL>, klass )" },
+	{ DaoPostgreSQLDB_Insert,  "Insert( self: SQLDatabase<PostgreSQL>, object: @T, ... : @T )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLDB_DeleteRow, "Delete( self: SQLDatabase<PostgreSQL>, object )=>SQLHandle<PostgreSQL>"},
+	{ DaoPostgreSQLDB_Select, "Select( self: SQLDatabase<PostgreSQL>, object, ...)=>SQLHandle<PostgreSQL>"},
+	{ DaoPostgreSQLDB_Update, "Update( self: SQLDatabase<PostgreSQL>, object, ...)=>SQLHandle<PostgreSQL>"},
+	{ DaoPostgreSQLDB_Query,  "Query( self: SQLDatabase<PostgreSQL>, sql: string ) => int" },
 	{ NULL, NULL }
 };
 
@@ -87,7 +87,7 @@ DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 	DaoSQLHandle_Init( (DaoSQLHandle*) self, (DaoSQLDatabase*) model );
 	self->model = model;
 	self->res = NULL;
-	self->name = DString_New(1);
+	self->name = DString_New();
 	sprintf( buf, "PQ_STMT_%p", self );
 	DString_SetChars( self->name, buf );
 	return self;
@@ -137,101 +137,101 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoPostgreSQLHD_Insert, "Insert( self :SQLHandle<PostgreSQL>, object :@T, ... :@T ) => int" },
-	{ DaoPostgreSQLHD_Bind, "Bind( self :SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Query, "Query( self :SQLHandle<PostgreSQL>, ... ) [] => int" },
-	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self :SQLHandle<PostgreSQL>, ... ) => int" },
+	{ DaoPostgreSQLHD_Insert, "Insert( self: SQLHandle<PostgreSQL>, object :@T, ... :@T ) => int" },
+	{ DaoPostgreSQLHD_Bind, "Bind( self: SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Query, "Query( self: SQLHandle<PostgreSQL>, ... ) [] => int" },
+	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self: SQLHandle<PostgreSQL>, ... ) => int" },
 
-	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self :SQLHandle<PostgreSQL>, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, field :string, key :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, field :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, field :string, key :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self: SQLHandle<PostgreSQL>, field: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self: SQLHandle<PostgreSQL>, field: string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self: SQLHandle<PostgreSQL>, field: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self: SQLHandle<PostgreSQL>, field: string, key: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self: SQLHandle<PostgreSQL>, field: string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self: SQLHandle<PostgreSQL>, field: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self: SQLHandle<PostgreSQL>, field: string, key: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self: SQLHandle<PostgreSQL>, field: string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self :SQLHandle<PostgreSQL>, table :class, field :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self :SQLHandle<PostgreSQL>, table :class, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, table :class, field :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self :SQLHandle<PostgreSQL>, table :class, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self :SQLHandle<PostgreSQL>, table :class, field :string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self: SQLHandle<PostgreSQL>, table: class, field: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self: SQLHandle<PostgreSQL>, table: class, field: string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self: SQLHandle<PostgreSQL>, table: class, field: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreDelete, "HStoreDelete( self: SQLHandle<PostgreSQL>, table: class, field: string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self: SQLHandle<PostgreSQL>, table: class, field: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_HStoreContain, "HStoreContain( self: SQLHandle<PostgreSQL>, table: class, field: string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self: SQLHandle<PostgreSQL>, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self: SQLHandle<PostgreSQL>, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self: SQLHandle<PostgreSQL>, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self: SQLHandle<PostgreSQL>, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self: SQLHandle<PostgreSQL>, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self: SQLHandle<PostgreSQL>, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self: SQLHandle<PostgreSQL>, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, value: any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Add, "HStoreAdd( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE, "HStoreNE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT, "HStoreGT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE, "HStoreGE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT, "HStoreLT( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE, "HStoreLE( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Add, "HStoreAdd( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ, "HStoreEQ( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE, "HStoreNE( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT, "HStoreGT( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE, "HStoreGE( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT, "HStoreLT( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE, "HStoreLE( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, value: any = none )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_NE2, "JsonNE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GT2, "JsonGT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_GE2, "JsonGE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LT2, "JsonLT( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_LE2, "JsonLE( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, value :any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_EQ2, "JsonEQ( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_NE2, "JsonNE( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GT2, "JsonGT( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_GE2, "JsonGE( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LT2, "JsonLT( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_LE2, "JsonLE( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, cast : type<int>|type<float>, value: any = none )=>SQLHandle<PostgreSQL>" },
 
 	// TODO: desc, use enum symbol!
-	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, field :string, key :string, desc=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, field :string, key :string, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self: SQLHandle<PostgreSQL>, field: string, key: string, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self: SQLHandle<PostgreSQL>, field: string, key: string, cast : type<int>|type<float>, desc=0 )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, desc=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self :SQLHandle<PostgreSQL>, table :class, field :string, key :string, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort,  "HStoreSort( self: SQLHandle<PostgreSQL>, table: class, field: string, key: string, cast : type<int>|type<float>, desc=0 )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, desc=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self: SQLHandle<PostgreSQL>, field: string, path : list<int|string>, cast : type<int>|type<float>, desc=0 )=>SQLHandle<PostgreSQL>" },
 
-	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, desc=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self :SQLHandle<PostgreSQL>, table :class, field :string, path :list<int|string>, cast :type<int>|type<float>|type<double>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, desc=0 )=>SQLHandle<PostgreSQL>" },
+	{ DaoPostgreSQLHD_Sort2,  "JsonSort( self: SQLHandle<PostgreSQL>, table: class, field: string, path : list<int|string>, cast : type<int>|type<float>, desc=0 )=>SQLHandle<PostgreSQL>" },
 
 	{ NULL, NULL }
 };
@@ -265,7 +265,7 @@ static void DaoPostgreSQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N 
 {
 	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
 	DaoClass *klass = (DaoClass*) p[1];
-	DString *sql = DString_New(1);
+	DString *sql = DString_New();
 	PGresult *res;
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	res = PQexec( model->conn, sql->chars );
@@ -355,8 +355,34 @@ static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 	//printf( "%s\n", json->chars );
 	//DString_SetChars( json, "{ \"name\": \"Firefox\" }" );
 }
+int FloorDiv( int a, int b ) 
+{
+    return (a - (a < 0? b - 1 : 0))/b;
+}
+
+int ToJulianDay( int year, int month, int day )
+{
+    int a = FloorDiv(14 - month, 12);
+    year += 4800 - a;
+    month += 12*a - 3;
+	day += FloorDiv( 153*month + 2, 5 ) + 365*year;
+	day += FloorDiv( year, 4 ) - FloorDiv( year, 100 ) + FloorDiv( year, 400 );
+	return day - 32045;
+}
+void FromJulianDay( int jday, int *year, int *month, int *day )
+{
+	int F = jday + 1401 + (((4*jday + 274277) / 146097) * 3) / 4 - 38;
+	int E = 4*F + 3;
+	int G = (E%1461) / 4;
+	int H = 5*G + 2;
+	*day = (H%153) / 5 + 1;
+	*month = ((H/153 + 2) % 12) + 1;
+	*year = (E/1461) - 4716 + (12 + 2 - *month) / 12;
+}
+
 static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index, DaoProcess *proc )
 {
+	DaoType *type = self->base.partypes[index];
 	DString *mbstring;
 
 	self->paramLengths[index] = 0;
@@ -391,6 +417,75 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		self->paramLengths[index] = mbstring->size;
 		break;
 	case DAO_TUPLE :
+#if 1
+		if( type == dao_sql_type_date ){
+			DaoTuple *tuple = (DaoTuple*) value;
+			int year = tuple->values[0]->xInteger.value;
+			int month = tuple->values[1]->xInteger.value;
+			int day = tuple->values[2]->xInteger.value;
+			int epoch_day = ToJulianDay( 2000, 1, 1 );
+			int stamp_day = ToJulianDay( year, month, day );
+			self->paramFormats[index] = 1;
+			self->paramLengths[index] = sizeof(uint32_t);
+			self->paramValues[index] = (char*) & self->paramInts32[index];
+			self->paramInts32[index] = htonl( stamp_day - epoch_day );
+			break;
+		}else if( type == dao_sql_type_timestamp ){
+			DaoTuple *tuple = (DaoTuple*) value;
+			int year = tuple->values[0]->xInteger.value;
+			int month = tuple->values[1]->xInteger.value;
+			int day = tuple->values[2]->xInteger.value;
+			int64_t epoch_day = ToJulianDay( 2000, 1, 1 );
+			int64_t stamp_day = ToJulianDay( year, month, day );
+			double pg_time = (stamp_day - epoch_day) * 24 * 3600;
+			pg_time += tuple->values[3]->xInteger.value * 3600;
+			pg_time += tuple->values[4]->xInteger.value * 60;
+			pg_time += tuple->values[5]->xFloat.value;
+			self->paramFormats[index] = 1;
+			self->paramLengths[index] = sizeof(uint64_t);
+			self->paramValues[index] = (char*) & self->paramInts64[index];
+			self->paramInts64[index] = htobe64( pg_time * 1E6 );
+			break;
+		}
+#else
+		if( type == dao_sql_type_date ){
+			DaoTuple *tuple = (DaoTuple*) value;
+			struct tm tm_epoch = {0};
+			struct tm tm_stamp = {0};
+			double pg_time;
+			tm_epoch.tm_year = 2000 - 1900;
+			tm_epoch.tm_mday = 1;
+			tm_stamp.tm_year = tuple->values[0]->xInteger.value - 1900;
+			tm_stamp.tm_mon = tuple->values[1]->xInteger.value - 1;
+			tm_stamp.tm_mday = tuple->values[2]->xInteger.value;
+			pg_time = difftime( mktime( & tm_stamp ), mktime( & tm_epoch ) );
+			self->paramFormats[index] = 1;
+			self->paramLengths[index] = sizeof(uint32_t);
+			self->paramValues[index] = (char*) & self->paramInts32[index];
+			self->paramInts32[index] = htonl( pg_time / (24 * 60 * 60) );
+			break;
+		}else if( type == dao_sql_type_timestamp ){
+			DaoTuple *tuple = (DaoTuple*) value;
+			struct tm tm_epoch = {0};
+			struct tm tm_stamp = {0};
+			double pg_time;
+			/* Not properly working for dates before 1970; */
+			tm_epoch.tm_year = 2000 - 1900;
+			tm_epoch.tm_mday = 1;
+			tm_stamp.tm_year = tuple->values[0]->xInteger.value - 1900;
+			tm_stamp.tm_mon = tuple->values[1]->xInteger.value - 1;
+			tm_stamp.tm_mday = tuple->values[2]->xInteger.value;
+			tm_stamp.tm_hour = tuple->values[3]->xInteger.value;
+			tm_stamp.tm_min = tuple->values[4]->xInteger.value;
+			pg_time = difftime( mktime( & tm_stamp ), mktime( & tm_epoch ) );
+			pg_time += tuple->values[5]->xFloat.value;
+			self->paramFormats[index] = 1;
+			self->paramLengths[index] = sizeof(uint64_t);
+			self->paramValues[index] = (char*) & self->paramInts64[index];
+			self->paramInts64[index] = htobe64( pg_time * 1E6 );
+			break;
+		}
+#endif
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
 		DaoTuple_ToJSON( (DaoTuple*) value, mbstring, proc );
@@ -432,6 +527,8 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 #define BPCHAROID       1042
 #define VARCHAROID      1043
 #define TEXTOID         25
+#define DATEOID         1082
+#define TIMESTAMPOID    1114
 static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 {
 	int k;
@@ -459,8 +556,15 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			}
 			break;
 		case DAO_MAP :
+			self->paramTypes[k] = TEXTOID;
+			break;
 		case DAO_TUPLE :
 			self->paramTypes[k] = TEXTOID;
+			if( type == dao_sql_type_date ){
+				self->paramTypes[k] = DATEOID;
+			}else if( type == dao_sql_type_timestamp ){
+				self->paramTypes[k] = TIMESTAMPOID;
+			}
 			break;
 		}
 	}
@@ -666,6 +770,33 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 				}
 				break;
 			case DAO_TUPLE :
+				if( type == dao_sql_type_date ){
+					DaoTuple *tuple = (DaoTuple*) value;
+					int64_t epoch_jday = ToJulianDay( 2000, 1, 1 );
+					int64_t stamp_jday = epoch_jday + ntohl(*((uint32_t *) pdata));
+					int year = 0, month = 0, day = 0;
+					FromJulianDay( stamp_jday, & year, & month, & day );
+					tuple->values[0]->xInteger.value = year;
+					tuple->values[1]->xInteger.value = month;
+					tuple->values[2]->xInteger.value = day;
+					break;
+				}else if( type == dao_sql_type_timestamp ){
+					DaoTuple *tuple = (DaoTuple*) value;
+					int64_t epoch_jday = ToJulianDay( 2000, 1, 1 );
+					int64_t stamp_msec = be64toh( *(uint64_t*) pdata );
+					int64_t stamp_sec = stamp_msec / 1E6 + epoch_jday * 24 * 3600;
+					int64_t stamp_jday = stamp_sec / (24 * 3600);
+					int year = 0, month = 0, day = 0;
+					FromJulianDay( stamp_jday, & year, & month, & day );
+					tuple->values[0]->xInteger.value = year;
+					tuple->values[1]->xInteger.value = month;
+					tuple->values[2]->xInteger.value = day;
+					stamp_sec = stamp_sec % (24 * 3600);
+					tuple->values[3]->xInteger.value = stamp_sec / 3600;
+					tuple->values[4]->xInteger.value = (stamp_sec % 3600) / 60;
+					tuple->values[5]->xFloat.value = (stamp_sec % 60) + (stamp_msec % 1000000)/1E6;
+					break;
+				}
 				k --;
 				k = DaoPostgreSQLHD_RetrieveJSON( proc, (DaoTuple*) value, handle->res, row, k );
 				break;
@@ -736,7 +867,7 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
-	fname = DString_New(1);
+	fname = DString_New();
 	klass = handle->classList->items.pClass[0];
 	if( handle->setCount ) DString_AppendChars( handle->sqlSource, ", " );
 	DString_Assign( fname, field->xString.value );
@@ -828,7 +959,7 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
-	fname = DString_New(1);
+	fname = DString_New();
 	if( handle->setCount ) DString_AppendChars( handle->sqlSource, ", " );
 
 	if( p[1]->type == DAO_CLASS ){

@@ -8,6 +8,11 @@ libpq  = DaoMake::FindPackage( "PostgreSQL",  $OPTIONAL )
 
 if( daovm == none ) return
 
+if( DaoMake::IsPlatform( "IOS" ) ){
+	mysql = none
+	libpq = none
+}
+
 project.UseImportLibrary( daovm, "dao" )
 project.SetTargetPath( "../../lib/dao/modules" )
 
@@ -40,6 +45,7 @@ if( mysql != none ){
 if( libpq != none ){
 	libpq_objs  = project.AddObjects( { "DaoPostgreSQL/daoPostgreSQL.c" },
 			{ "DaoPostgreSQL/daoPostgreSQL.h" } )
+	libpq_objs.UseProject( libpq )
 	libpq_dll  = project.AddSharedLibrary( "dao_postgresql", libpq_objs )
 	libpq_dll.UseSharedLibrary( libpq )
 	libpq_dll.UseSharedLibrary( project, "dao_sql" )

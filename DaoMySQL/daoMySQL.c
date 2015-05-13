@@ -34,14 +34,14 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoMySQLDB_DataModel,"SQLDatabase<MySQL>( name : string, host=\"\", user=\"\", pwd=\"\" )=>SQLDatabase<MySQL>"},
-	{ DaoMySQLDB_CreateTable,  "CreateTable( self:SQLDatabase<MySQL>, klass )" },
-//	{ DaoMySQLDB_AlterTable,  "AlterTable( self:SQLDatabase<MySQL>, klass )" },
-	{ DaoMySQLDB_Insert,  "Insert( self:SQLDatabase<MySQL>, object :@T, ... :@T )=>SQLHandle<MySQL>" },
-	{ DaoMySQLDB_DeleteRow, "Delete( self:SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>"},
-	{ DaoMySQLDB_Select, "Select( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
-	{ DaoMySQLDB_Update, "Update( self:SQLDatabase<MySQL>, object,...)=>SQLHandle<MySQL>"},
-	{ DaoMySQLDB_Query,  "Query( self:SQLDatabase<MySQL>, sql : string ) => int" },
+	{ DaoMySQLDB_DataModel,"SQLDatabase<MySQL>( name : string, host='', user='', pwd='' )=>SQLDatabase<MySQL>"},
+	{ DaoMySQLDB_CreateTable,  "CreateTable( self: SQLDatabase<MySQL>, klass )" },
+//	{ DaoMySQLDB_AlterTable,  "AlterTable( self: SQLDatabase<MySQL>, klass )" },
+	{ DaoMySQLDB_Insert,  "Insert( self: SQLDatabase<MySQL>, object: @T, ...: @T )=>SQLHandle<MySQL>" },
+	{ DaoMySQLDB_DeleteRow, "Delete( self: SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>"},
+	{ DaoMySQLDB_Select, "Select( self: SQLDatabase<MySQL>, object, ... )=>SQLHandle<MySQL>"},
+	{ DaoMySQLDB_Update, "Update( self: SQLDatabase<MySQL>, object, ... )=>SQLHandle<MySQL>"},
+	{ DaoMySQLDB_Query,  "Query( self: SQLDatabase<MySQL>, sql: string ) => int" },
 	{ NULL, NULL }
 };
 
@@ -92,10 +92,10 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoMySQLHD_Insert, "Insert( self:SQLHandle<MySQL>, object :@T, ... :@T ) => int" },
-	{ DaoMySQLHD_Bind, "Bind( self:SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
-	{ DaoMySQLHD_Query, "Query( self:SQLHandle<MySQL>, ... ) [] => int" },
-	{ DaoMySQLHD_QueryOnce, "QueryOnce( self:SQLHandle<MySQL>, ... ) => int" },
+	{ DaoMySQLHD_Insert, "Insert( self: SQLHandle<MySQL>, object: @T, ... : @T ) => int" },
+	{ DaoMySQLHD_Bind, "Bind( self: SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
+	{ DaoMySQLHD_Query, "Query( self: SQLHandle<MySQL>, ... ) [] => int" },
+	{ DaoMySQLHD_QueryOnce, "QueryOnce( self: SQLHandle<MySQL>, ... ) => int" },
 	{ NULL, NULL }
 };
 
@@ -133,7 +133,7 @@ static void DaoMySQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0]->xCdata.data;
 	DaoClass *klass = (DaoClass*) p[1];
-	DString *sql = DString_New(1);
+	DString *sql = DString_New();
 	MYSQL_STMT *stmt;
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
 	stmt = mysql_stmt_init( model->mysql );

@@ -35,14 +35,14 @@ static void DaoSQLiteDB_Query( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoSQLiteDB_DataModel,"SQLDatabase<SQLite>( name :string, host=\"\", user=\"\", pwd=\"\" )=>SQLDatabase<SQLite>"},
-	{ DaoSQLiteDB_CreateTable,  "CreateTable( self :SQLDatabase<SQLite>, klass )" },
+	{ DaoSQLiteDB_DataModel,"SQLDatabase<SQLite>( name: string, host='', user='', pwd='' )=>SQLDatabase<SQLite>"},
+	{ DaoSQLiteDB_CreateTable,  "CreateTable( self: SQLDatabase<SQLite>, klass )" },
 //	{ DaoSQLiteDB_AlterTable,  "AlterTable( self:SQLDatabase<SQLite>, klass )" },
-	{ DaoSQLiteDB_Insert,  "Insert( self :SQLDatabase<SQLite>, object :@T, ... :@T )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteDB_DeleteRow,"Delete( self :SQLDatabase<SQLite>, object )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteDB_Select, "Select( self :SQLDatabase<SQLite>, object, ... )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteDB_Update, "Update( self :SQLDatabase<SQLite>, object, ... )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteDB_Query,  "Query( self :SQLDatabase<SQLite>, sql :string )=>int" },
+	{ DaoSQLiteDB_Insert,  "Insert( self: SQLDatabase<SQLite>, object: @T, ... : @T )=>SQLHandle<SQLite>" },
+	{ DaoSQLiteDB_DeleteRow,"Delete( self: SQLDatabase<SQLite>, object )=>SQLHandle<SQLite>" },
+	{ DaoSQLiteDB_Select, "Select( self: SQLDatabase<SQLite>, object, ... )=>SQLHandle<SQLite>" },
+	{ DaoSQLiteDB_Update, "Update( self: SQLDatabase<SQLite>, object, ... )=>SQLHandle<SQLite>" },
+	{ DaoSQLiteDB_Query,  "Query( self: SQLDatabase<SQLite>, sql: string )=>int" },
 	{ NULL, NULL }
 };
 
@@ -74,10 +74,10 @@ static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoSQLiteHD_Insert, "Insert( self :SQLHandle<SQLite>, object :@T, ... :@T ) => int" },
-	{ DaoSQLiteHD_Bind,   "Bind( self :SQLHandle<SQLite>, value, index=0 )=>SQLHandle<SQLite>" },
-	{ DaoSQLiteHD_Query,  "Query( self :SQLHandle<SQLite>, ... ) [] => int" },
-	{ DaoSQLiteHD_QueryOnce, "QueryOnce( self :SQLHandle<SQLite>, ... ) => int" },
+	{ DaoSQLiteHD_Insert, "Insert( self: SQLHandle<SQLite>, object: @T, ... : @T ) => int" },
+	{ DaoSQLiteHD_Bind,   "Bind( self: SQLHandle<SQLite>, value, index=0 )=>SQLHandle<SQLite>" },
+	{ DaoSQLiteHD_Query,  "Query( self: SQLHandle<SQLite>, ... ) [] => int" },
+	{ DaoSQLiteHD_QueryOnce, "QueryOnce( self: SQLHandle<SQLite>, ... ) => int" },
 	{ NULL, NULL }
 };
 
@@ -103,7 +103,7 @@ static void DaoSQLiteDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
 	DaoClass *klass = (DaoClass*) p[1];
-	DString *sql = DString_New(1);
+	DString *sql = DString_New();
 	sqlite3_stmt *stmt = NULL;
 	int rc = 0;
 	DaoSQLDatabase_CreateTable( (DaoSQLDatabase*) model, klass, sql );
