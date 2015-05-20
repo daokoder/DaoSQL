@@ -69,6 +69,12 @@ int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 void DString_AppendSQL( DString *self, DString *content, int escape, const char *quote );
 DString* DaoSQLDatabase_TableName( DaoClass *klass );
 
+extern DaoType *dao_sql_type_bigint;
+extern DaoType *dao_sql_type_integer_primary_key;
+extern DaoType *dao_sql_type_integer_primary_key_auto_increment;
+extern DaoType *dao_sql_type_real;
+extern DaoType *dao_sql_type_float;
+extern DaoType *dao_sql_type_double;
 extern DaoType *dao_sql_type_date;
 extern DaoType *dao_sql_type_timestamp;
 

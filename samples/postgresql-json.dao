@@ -3,8 +3,8 @@ load postgresql
 
 class Event
 {
-	var  name        : VARCHAR200;
-	var  visitor_id  : VARCHAR200;
+	var  name        : VARCHAR256;
+	var  visitor_id  : VARCHAR256;
 	var  properties  : JSON;
 	var  browser     : JSON;
 }

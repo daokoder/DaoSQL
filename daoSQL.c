@@ -231,9 +231,9 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 		DString_AppendChars( sql, "\n" );
 		DString_Append( sql, names[i] );
 		DString_AppendChars( sql, "  " );
-		if( strcmp( tpname, "INT_PRIMARY_KEY" ) ==0 ){
+		if( strcmp( tpname, "INTEGER_PRIMARY_KEY" ) ==0 ){
 			DString_AppendChars( sql, "INTEGER PRIMARY KEY" );
-		}else if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ){
+		}else if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ){
 			if( self->type == DAO_SQLITE ){
 				DString_AppendChars( sql, "INTEGER PRIMARY KEY AUTOINCREMENT" );
 			}else if( self->type == DAO_POSTGRESQL ){
@@ -241,6 +241,8 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			}else{
 				DString_AppendChars( sql, "INTEGER PRIMARY KEY AUTO_INCREMENT" );
 			}
+		}else if( type == dao_sql_type_double ){
+			DString_AppendChars( sql, "DOUBLE PRECISION" );
 		}else if( strstr( tpname, "CHAR" ) == tpname ){
 			DString_AppendChars( sql, "CHAR(" );
 			DString_AppendChars( sql, tpname+4 );
@@ -294,7 +296,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		if( self->database->type == DAO_POSTGRESQL ){
 			DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[i]->dtype );
 			char *tpname = type->name->chars;
-			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
+			if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
 		if( k++ ) DString_AppendChars( self->sqlSource, "," );
 		DString_Append( self->sqlSource, klass->objDataName->items.pString[i] );
@@ -305,7 +307,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[i]->dtype );
 		if( self->database->type == DAO_POSTGRESQL ){
 			char *tpname = type->name->chars;
-			if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
+			if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
 		self->partypes[self->paramCount++] = type;
 		if( k++ ) DString_AppendChars( self->sqlSource, "," );
@@ -859,6 +861,12 @@ static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N )
 }
 
 
+DaoType *dao_sql_type_bigint = NULL;
+DaoType *dao_sql_type_integer_primary_key = NULL;
+DaoType *dao_sql_type_integer_primary_key_auto_increment = NULL;
+DaoType *dao_sql_type_real = NULL;
+DaoType *dao_sql_type_float = NULL;
+DaoType *dao_sql_type_double = NULL;
 DaoType *dao_sql_type_date = NULL;
 DaoType *dao_sql_type_timestamp = NULL;
 
@@ -867,40 +875,54 @@ int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
 
-	DaoNamespace_DefineType( ns, "int", "INT" );
-	DaoNamespace_DefineType( ns, "int", "TINYINT" );
+	DaoNamespace_DefineType( ns, "int", "INTEGER" );
 	DaoNamespace_DefineType( ns, "int", "SMALLINT" );
-	DaoNamespace_DefineType( ns, "int", "MEDIUMINT" );
-	DaoNamespace_DefineType( ns, "int", "INT_PRIMARY_KEY" );
-	DaoNamespace_DefineType( ns, "int", "INT_PRIMARY_KEY_AUTO_INCREMENT" );
-	DaoNamespace_DefineType( ns, "float",  "BIGINT" );
+	dao_sql_type_bigint = DaoNamespace_DefineType( ns, "int", "BIGINT" );
+
+	dao_sql_type_integer_primary_key = DaoNamespace_DefineType( ns, "int", "INTEGER_PRIMARY_KEY" );
+	dao_sql_type_integer_primary_key_auto_increment
+		= DaoNamespace_DefineType( ns, "int", "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" );
+
+	dao_sql_type_real = DaoNamespace_DefineType( ns, "float", "REAL" );
+	dao_sql_type_float = DaoNamespace_DefineType( ns, "float", "FLOAT" );
+	dao_sql_type_double = DaoNamespace_DefineType( ns, "float", "DOUBLE_PRECISION" );
+
 	DaoNamespace_DefineType( ns, "string", "TEXT" );
 	DaoNamespace_DefineType( ns, "string", "MEDIUMTEXT" );
 	DaoNamespace_DefineType( ns, "string", "LONGTEXT" );
 	DaoNamespace_DefineType( ns, "string", "BLOB" );
 	DaoNamespace_DefineType( ns, "string", "MEDIUMBLOB" );
 	DaoNamespace_DefineType( ns, "string", "LONGBLOB" );
-	DaoNamespace_DefineType( ns, "string", "CHAR" );
+
+	DaoNamespace_DefineType( ns, "string", "CHAR1" );
 	DaoNamespace_DefineType( ns, "string", "CHAR2" );
 	DaoNamespace_DefineType( ns, "string", "CHAR4" );
 	DaoNamespace_DefineType( ns, "string", "CHAR8" );
-	DaoNamespace_DefineType( ns, "string", "CHAR10" );
+	DaoNamespace_DefineType( ns, "string", "CHAR12" );
 	DaoNamespace_DefineType( ns, "string", "CHAR16" );
-	DaoNamespace_DefineType( ns, "string", "CHAR20" );
+	DaoNamespace_DefineType( ns, "string", "CHAR24" );
 	DaoNamespace_DefineType( ns, "string", "CHAR32" );
-	DaoNamespace_DefineType( ns, "string", "CHAR50" );
+	DaoNamespace_DefineType( ns, "string", "CHAR48" );
 	DaoNamespace_DefineType( ns, "string", "CHAR64" );
-	DaoNamespace_DefineType( ns, "string", "CHAR100" );
+	DaoNamespace_DefineType( ns, "string", "CHAR96" );
 	DaoNamespace_DefineType( ns, "string", "CHAR128" );
-	DaoNamespace_DefineType( ns, "string", "CHAR200" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR10" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR20" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR50" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR100" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR200" );
+	DaoNamespace_DefineType( ns, "string", "CHAR192" );
+	DaoNamespace_DefineType( ns, "string", "CHAR256" );
+
+	DaoNamespace_DefineType( ns, "string", "VARCHAR8" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR12" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR16" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR24" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR32" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR48" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR64" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR96" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR128" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR192" );
+	DaoNamespace_DefineType( ns, "string", "VARCHAR256" );
+
 	dao_sql_type_date = DaoNamespace_DefineType( ns,
-			"tuple<year: int, month: int, day: int>",
-			"DATE" );
+			"tuple<year: int, month: int, day: int>", "DATE" );
 	dao_sql_type_timestamp = DaoNamespace_DefineType( ns,
 			"tuple<year: int, month: int, day: int, hour: int, minute: int, second: float>",
 			"TIMESTAMP" );

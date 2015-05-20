@@ -167,7 +167,7 @@ static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoOb
 		value = object->objValues[i];
 		bind = handle->parbind + (i-1);
 		pbuf = handle->base.pardata[i-1]->chars;
-		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) k = i;
+		if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) k = i;
 		switch( value->type ){
 			case DAO_NONE :
 				bind->buffer_type = MYSQL_TYPE_NULL;

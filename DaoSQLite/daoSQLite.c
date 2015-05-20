@@ -153,7 +153,7 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 		tpname = type->name->chars;
 		value = object->objValues[i];
 		//fprintf( stderr, "%3i: %s %s\n", i, klass->objDataName->items.pString[i]->chars, tpname );
-		if( strstr( tpname, "INT_PRIMARY_KEY" ) == tpname ){
+		if( strstr( tpname, "INTEGER_PRIMARY_KEY" ) == tpname ){
 			key = i;
 			sqlite3_bind_null( stmt, i );
 			continue;

@@ -393,9 +393,15 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		break;
 	case DAO_INTEGER :
 		self->paramFormats[index] = 1;
-		self->paramLengths[index] = sizeof(uint32_t);
-		self->paramValues[index] = (char*) & self->paramInts32[index];
-		self->paramInts32[index] = htonl((uint32_t) value->xInteger.value );
+		if( type == dao_sql_type_bigint ){
+			self->paramLengths[index] = sizeof(uint64_t);
+			self->paramValues[index] = (char*) & self->paramInts64[index];
+			self->paramInts64[index] = htobe64((uint64_t) value->xInteger.value );
+		}else{
+			self->paramLengths[index] = sizeof(uint32_t);
+			self->paramValues[index] = (char*) & self->paramInts32[index];
+			self->paramInts32[index] = htonl((uint32_t) value->xInteger.value );
+		}
 		break;
 	case DAO_FLOAT   :
 		self->paramFormats[index] = 1;
@@ -506,7 +512,7 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 		DaoType *type = DaoType_GetBaseType( vars[i]->dtype );
 		char *tpname = type->name->chars;
 		DaoValue *value = object->objValues[i];
-		if( strcmp( tpname, "INT_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) continue;
+		if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) continue;
 		DaoPostgreSQLHD_BindValue( handle, value, k++, proc );
 	}
 	if( handle->res ) PQclear( handle->res );
@@ -521,6 +527,7 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 }
 #define VOIDOID         2278
 #define INT4OID         23
+#define INT8OID         20
 #define FLOAT4OID       700
 #define FLOAT8OID       701
 #define BYTEAOID        17
@@ -540,7 +547,7 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			self->paramTypes[k] = VOIDOID; // ???
 			break;
 		case DAO_INTEGER :
-			self->paramTypes[k] = INT4OID;
+			self->paramTypes[k] = type == dao_sql_type_bigint ? INT8OID : INT4OID;
 			break;
 		case DAO_FLOAT :
 			self->paramTypes[k] = FLOAT8OID;
@@ -699,7 +706,7 @@ static int DaoPostgreSQLHD_RetrieveJSON( DaoProcess *proc, DaoTuple *json, PGres
 		case DAO_NONE:
 			break;
 		case DAO_INTEGER :
-			item->xInteger.value = ntohl(*((uint32_t *) pdata));
+			item->xInteger.value = be64toh( *(uint64_t*) pdata );
 			break;
 		case DAO_FLOAT  :
 			ivalue64 = be64toh( *(uint64_t*) pdata );
@@ -749,7 +756,11 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 			}
 			switch( type->tid ){
 			case DAO_INTEGER :
-				value->xInteger.value = ntohl(*((uint32_t *) pdata));
+				if( type == dao_sql_type_bigint ){
+					value->xInteger.value = be64toh( *(uint64_t*) pdata );
+				}else{
+					value->xInteger.value = ntohl(*((uint32_t *) pdata));
+				}
 				break;
 			case DAO_FLOAT  :
 				ivalue64 = be64toh( *(uint64_t*) pdata );
