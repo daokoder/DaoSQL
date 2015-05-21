@@ -452,6 +452,10 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 			if( type->tid == DAO_MAP && self->database->type == DAO_POSTGRESQL ){
 				DaoMap *keys = object ? (DaoMap*) object->objValues[j] : NULL ;
 				DNode *it = keys ? DaoMap_First(keys) : NULL;
+				if( object == NULL ){
+					DaoProcess_RaiseError( proc, "Param", "HSTORE field requires instance for Select()" );
+					return 0;
+				}
 				for(; it; it=DaoMap_Next(keys,it)){
 					if( k++ ) DString_AppendChars( self->sqlSource, "," );
 					if( ntable >1 ){
@@ -466,6 +470,8 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 				DaoTuple *json = object ? (DaoTuple*) object->objValues[j] : NULL ;
 				DString *path = DString_New();
 				if( object == NULL ){
+					DaoProcess_RaiseError( proc, "Param", "JSON field requires instance for Select()" );
+					return 0;
 				}
 				if( ntable >1 ){
 					DString_Append( path, tabname );
@@ -502,13 +508,16 @@ HandleNormalField:
 int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoClass *klass;
+	DaoObject *object;
 	DString *tabname = NULL;
 	int i, j;
 	self->paramCount = 0;
 	DString_AppendChars( self->sqlSource, "UPDATE " );
 	for(i=1; i<N; i++){
 		if( i >1 ) DString_AppendChars( self->sqlSource, "," );
-		klass = (DaoClass*) p[i];
+		klass = DaoValue_CastClass( p[i] );
+		object = DaoValue_CastObject( p[i] );
+		if( object ) klass = object->defClass;
 		DList_PushBack( self->classList, klass );
 		tabname = DaoSQLDatabase_TableName( klass );
 		DString_Append( self->sqlSource, tabname );

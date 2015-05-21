@@ -541,6 +541,7 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 	int k;
 	for(k=0; k<self->base.paramCount; ++k){
 		DaoType *type = self->base.partypes[k];
+		type = DaoType_GetBaseType( type );
 		self->paramTypes[k] = 0;
 		switch( type->tid ){
 		case DAO_NONE :
@@ -643,6 +644,7 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		DaoPostgreSQLDB *db = handle->model;
 		DString *sql = handle->base.sqlSource;
 		if( handle->res ) PQclear( handle->res );
+		DaoPostgreSQLHD_PrepareBindings( handle );
 		handle->res = PQprepare( db->conn, handle->name->chars, sql->chars, handle->base.paramCount, handle->paramTypes );
 		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
 			DaoProcess_RaiseError( proc, "Param", PQerrorMessage( db->conn ) );
