@@ -41,7 +41,7 @@ static DaoFuncItem modelMeths[]=
 	{ DaoMySQLDB_DeleteRow, "Delete( self: SQLDatabase<MySQL>, object )=>SQLHandle<MySQL>"},
 	{ DaoMySQLDB_Select, "Select( self: SQLDatabase<MySQL>, object, ... )=>SQLHandle<MySQL>"},
 	{ DaoMySQLDB_Update, "Update( self: SQLDatabase<MySQL>, object, ... )=>SQLHandle<MySQL>"},
-	{ DaoMySQLDB_Query,  "Query( self: SQLDatabase<MySQL>, sql: string ) => int" },
+	{ DaoMySQLDB_Query,  "Query( self: SQLDatabase<MySQL>, sql: string ) => bool" },
 	{ NULL, NULL }
 };
 
@@ -92,10 +92,10 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoMySQLHD_Insert, "Insert( self: SQLHandle<MySQL>, object: @T, ... : @T ) => int" },
+	{ DaoMySQLHD_Insert, "Insert( self: SQLHandle<MySQL>, object: @T, ... : @T ) => SQLHandle<MySQL>" },
 	{ DaoMySQLHD_Bind, "Bind( self: SQLHandle<MySQL>, value, index=0 )=>SQLHandle<MySQL>" },
-	{ DaoMySQLHD_Query, "Query( self: SQLHandle<MySQL>, ... ) [] => int" },
-	{ DaoMySQLHD_QueryOnce, "QueryOnce( self: SQLHandle<MySQL>, ... ) => int" },
+	{ DaoMySQLHD_Query, "Query( self: SQLHandle<MySQL>, ... ) [] => bool" },
+	{ DaoMySQLHD_QueryOnce, "QueryOnce( self: SQLHandle<MySQL>, ... ) => bool" },
 	{ NULL, NULL }
 };
 
@@ -151,7 +151,7 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
 		return;
 	}
-	DaoProcess_PutInteger( proc, 1 );
+	DaoProcess_PutBoolean( proc, 1 );
 }
 static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoObject *object )
 {
@@ -398,7 +398,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoVmCode *sect;
 	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
-	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
 	int i, j, k = 0, rc = 0;
 	int pitch, offset;
 	int entry;
@@ -425,7 +425,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0]->xCdata.data;
-	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
 	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
 	*res = DaoMySQLHD_Retrieve( proc, p, N );
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );

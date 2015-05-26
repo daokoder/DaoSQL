@@ -8,9 +8,17 @@
 #include"string.h"
 #include"daoPostgreSQL.h"
 
+
+#ifdef UNIX
+#  include<unistd.h>
+#  include<sys/time.h>
+#endif
+
+
 #ifdef MACOSX
 
   #include <libkern/OSByteOrder.h>
+#  include <crt_externs.h>
  
   #define htobe16(x) OSSwapHostToBigInt16(x)
   #define htole16(x) OSSwapHostToLittleInt16(x)
@@ -68,7 +76,7 @@ static DaoFuncItem modelMeths[]=
 	{ DaoPostgreSQLDB_DeleteRow, "Delete( self: SQLDatabase<PostgreSQL>, object )=>SQLHandle<PostgreSQL>"},
 	{ DaoPostgreSQLDB_Select, "Select( self: SQLDatabase<PostgreSQL>, object, ...)=>SQLHandle<PostgreSQL>"},
 	{ DaoPostgreSQLDB_Update, "Update( self: SQLDatabase<PostgreSQL>, object, ...)=>SQLHandle<PostgreSQL>"},
-	{ DaoPostgreSQLDB_Query,  "Query( self: SQLDatabase<PostgreSQL>, sql: string ) => int" },
+	{ DaoPostgreSQLDB_Query,  "Query( self: SQLDatabase<PostgreSQL>, sql: string ) => bool" },
 	{ NULL, NULL }
 };
 
@@ -88,15 +96,14 @@ DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 	self->model = model;
 	self->res = NULL;
 	self->name = DString_New();
-	sprintf( buf, "PQ_STMT_%p", self );
+	sprintf( buf, "PQ_STMT_%p", clock() );
 	DString_SetChars( self->name, buf );
 	return self;
 }
 void DaoPostgreSQLHD_Delete( DaoPostgreSQLHD *self )
 {
 	int i;
-	/* it appears to close all other stmt associated with the connection too! */
-	/* mysql_stmt_close( self->stmt ); */
+	if( self->res ) PQclear( self->res );
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		DString_Delete( self->base.pardata[i] );
 		DString_Delete( self->base.resdata[i] );
@@ -137,10 +144,10 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handleMeths[]=
 {
-	{ DaoPostgreSQLHD_Insert, "Insert( self: SQLHandle<PostgreSQL>, object :@T, ... :@T ) => int" },
+	{ DaoPostgreSQLHD_Insert, "Insert( self: SQLHandle<PostgreSQL>, object :@T, ... :@T ) => SQLHandle<PostgreSQL>" },
 	{ DaoPostgreSQLHD_Bind, "Bind( self: SQLHandle<PostgreSQL>, value, index=0 )=>SQLHandle<PostgreSQL>" },
-	{ DaoPostgreSQLHD_Query, "Query( self: SQLHandle<PostgreSQL>, ... ) [] => int" },
-	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self: SQLHandle<PostgreSQL>, ... ) => int" },
+	{ DaoPostgreSQLHD_Query, "Query( self: SQLHandle<PostgreSQL>, ... ) [] => bool" },
+	{ DaoPostgreSQLHD_QueryOnce, "QueryOnce( self: SQLHandle<PostgreSQL>, ... ) => bool" },
 
 	{ DaoPostgreSQLHD_HStoreSet, "HstoreSet( self: SQLHandle<PostgreSQL>, field: string )=>SQLHandle<PostgreSQL>" },
 	{ DaoPostgreSQLHD_HStoreSet, "HStoreSet( self: SQLHandle<PostgreSQL>, field: string, pairs :map<string,string> )=>SQLHandle<PostgreSQL>" },
@@ -283,7 +290,7 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 	}
-	DaoProcess_PutInteger( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
+	DaoProcess_PutBoolean( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
 	PQclear( res );
 }
 static void DString_AppendKeyValues( DString *self, DaoMap *keyvalues )
@@ -700,6 +707,10 @@ static int DaoPostgreSQLHD_RetrieveJSON( DaoProcess *proc, DaoTuple *json, PGres
 	uint32_t ivalue32;
 	uint64_t ivalue64;
 	daoint i, j, len;
+	if( json->size == 0 ){
+		PQgetvalue( res, row, k++ );
+		return k;
+	}
 	for(i=0; i<json->size; ++i){
 		DaoValue *item = json->values[i];
 		pdata = PQgetvalue( res, row, k++ );
@@ -824,7 +835,7 @@ static int status_ok[2] = { PGRES_COMMAND_OK, PGRES_TUPLES_OK };
 static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	daoint i, j, k, m, entry, row;
-	dao_integer *count = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *count = DaoProcess_PutBoolean( proc, 0 );
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
 	DaoPostgreSQLDB *model = handle->model;
 	DaoValue *params[DAO_MAX_PARAM+1];
@@ -855,7 +866,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
-	dao_integer *res = DaoProcess_PutInteger( proc, 0 );
+	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
 	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
 	if( PQntuples( handle->res ) ){
 		DaoPostgreSQLHD_Retrieve( proc, p, N, 0 );

@@ -153,7 +153,7 @@ static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handlerMeths[]=
 {
-	{ DaoSQLHandle_SQLString, "sqlstring( self: @SQLHandle )=>string" },
+	{ DaoSQLHandle_SQLString, "SQLString( self: @SQLHandle )=>string" },
 	{ DaoSQLHandle_Where,  "Where( self: @SQLHandle )=>@SQLHandle" },
 	{ DaoSQLHandle_Set, "Set( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
 	{ DaoSQLHandle_Add, "Add( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
@@ -456,6 +456,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 					DaoProcess_RaiseError( proc, "Param", "HSTORE field requires instance for Select()" );
 					return 0;
 				}
+				if( keys->value->size == 0 ) goto HandleNormalField;
 				for(; it; it=DaoMap_Next(keys,it)){
 					if( k++ ) DString_AppendChars( self->sqlSource, "," );
 					if( ntable >1 ){
@@ -468,11 +469,13 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 				}
 			}else if( type->tid == DAO_TUPLE && self->database->type == DAO_POSTGRESQL ){
 				DaoTuple *json = object ? (DaoTuple*) object->objValues[j] : NULL ;
-				DString *path = DString_New();
+				DString *path;
+				if( json->size == 0 ) goto HandleNormalField;
 				if( object == NULL ){
 					DaoProcess_RaiseError( proc, "Param", "JSON field requires instance for Select()" );
 					return 0;
 				}
+				path = DString_New();
 				if( ntable >1 ){
 					DString_Append( path, tabname );
 					DString_AppendChars( path, "." );
@@ -638,6 +641,7 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 	klass = handler->classList->items.pClass[0];
 	if( handler->boolCount ) DString_AppendChars( handler->sqlSource, " AND " );
 	if( p[1]->type == DAO_CLASS ){
+		klass = (DaoClass*) p[1];
 		field = p[2];
 		value = p[3];
 		tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
@@ -903,31 +907,26 @@ int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace_DefineType( ns, "string", "MEDIUMBLOB" );
 	DaoNamespace_DefineType( ns, "string", "LONGBLOB" );
 
+	/*
+	// For char(x) or varchar(x) with any x, one can use:
+	// type charx = string
+	// type varcharx = string
+	*/
 	DaoNamespace_DefineType( ns, "string", "CHAR1" );
 	DaoNamespace_DefineType( ns, "string", "CHAR2" );
 	DaoNamespace_DefineType( ns, "string", "CHAR4" );
 	DaoNamespace_DefineType( ns, "string", "CHAR8" );
-	DaoNamespace_DefineType( ns, "string", "CHAR12" );
 	DaoNamespace_DefineType( ns, "string", "CHAR16" );
-	DaoNamespace_DefineType( ns, "string", "CHAR24" );
 	DaoNamespace_DefineType( ns, "string", "CHAR32" );
-	DaoNamespace_DefineType( ns, "string", "CHAR48" );
 	DaoNamespace_DefineType( ns, "string", "CHAR64" );
-	DaoNamespace_DefineType( ns, "string", "CHAR96" );
 	DaoNamespace_DefineType( ns, "string", "CHAR128" );
-	DaoNamespace_DefineType( ns, "string", "CHAR192" );
 	DaoNamespace_DefineType( ns, "string", "CHAR256" );
 
 	DaoNamespace_DefineType( ns, "string", "VARCHAR8" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR12" );
 	DaoNamespace_DefineType( ns, "string", "VARCHAR16" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR24" );
 	DaoNamespace_DefineType( ns, "string", "VARCHAR32" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR48" );
 	DaoNamespace_DefineType( ns, "string", "VARCHAR64" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR96" );
 	DaoNamespace_DefineType( ns, "string", "VARCHAR128" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR192" );
 	DaoNamespace_DefineType( ns, "string", "VARCHAR256" );
 
 	dao_sql_type_date = DaoNamespace_DefineType( ns,
