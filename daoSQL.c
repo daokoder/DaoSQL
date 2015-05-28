@@ -883,7 +883,7 @@ DaoType *dao_sql_type_double = NULL;
 DaoType *dao_sql_type_date = NULL;
 DaoType *dao_sql_type_timestamp = NULL;
 
-int DaoOnLoad( DaoVmSpace * vms, DaoNamespace *ns )
+int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };

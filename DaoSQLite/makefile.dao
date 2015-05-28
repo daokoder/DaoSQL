@@ -1,0 +1,35 @@
+
+project = DaoMake::Project( "DaoSqlite" ) 
+
+daovm  = DaoMake::FindPackage( "Dao",    $REQUIRED )
+sqlite  = DaoMake::FindPackage( "SQLite",  $OPTIONAL )
+
+daosql  = DaoMake::FindPackage( "DaoSQL",  $REQUIRED )
+
+if( daovm == none or sqlite == none ) return
+
+if( DaoMake::IsPlatform( "IOS" ) ) return
+
+project.UseImportLibrary( daovm, "dao" )
+project.SetTargetPath( "../../../lib/dao/modules" )
+
+project.AddIncludePath( ".." )
+project.AddIncludePath( "../../../kernel" )
+
+if( DaoMake::IsPlatform( "MACOSX" ) ) project.AddDefinition( "__BSD__" )
+
+sqlite_objs  = project.AddObjects( { "daoSQLite.c" }, { "daoSQLite.h" } )
+sqlite_objs.UseProject( sqlite )
+sqlite_dll  = project.AddSharedLibrary( "dao_sqlite", sqlite_objs )
+sqlite_lib  = project.AddStaticLibrary( "dao_sqlite", sqlite_objs )
+sqlite_dll.UseSharedLibrary( daosql, "dao_sql" )
+sqlite_dll.UseSharedLibrary( sqlite )
+sqlite_lib.UseSharedLibrary( sqlite )
+
+project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_dll );
+project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_lib );
+
+project.GenerateFinder( $TRUE );
+findpkg = DaoMake::MakePath( project.BinaryPath(), "FindDaoSqlite.dao" );
+project.Install( DaoMake::Variables[ "INSTALL_FINDER" ], findpkg );
+

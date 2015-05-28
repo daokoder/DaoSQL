@@ -23,37 +23,17 @@ if( DaoMake::IsPlatform( "MACOSX" ) ) project.AddDefinition( "__BSD__" )
 
 daosql_objs = project.AddObjects( { "daoSQL.c" }, { "daoSQL.h" } )
 daosql_dll = project.AddSharedLibrary( "dao_sql", daosql_objs )
+daosql_lib = project.AddStaticLibrary( "dao_sql", daosql_objs )
 
 project.Install( DaoMake::Variables[ "INSTALL_MOD" ], daosql_dll );
-
-if( sqlite != none ){
-	sqlite_objs = project.AddObjects( { "DaoSQLite/daoSQLite.c" }, { "DaoSQLite/daoSQLite.h" } )
-	sqlite_dll = project.AddSharedLibrary( "dao_sqlite", sqlite_objs )
-	sqlite_dll.UseSharedLibrary( sqlite )
-	sqlite_dll.UseSharedLibrary( project, "dao_sql" )
-	project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_dll );
-}
-
-if( mysql != none ){
-	mysql_objs  = project.AddObjects( { "DaoMySQL/daoMySQL.c" }, { "DaoMySQL/daoMySQL.h" } )
-	mysql_dll  = project.AddSharedLibrary( "dao_mysql", mysql_objs )
-	mysql_dll.UseSharedLibrary( mysql )
-	mysql_dll.UseSharedLibrary( project, "dao_sql" )
-	project.Install( DaoMake::Variables[ "INSTALL_MOD" ], mysql_dll );
-}
-
-if( libpq != none ){
-	libpq_objs  = project.AddObjects( { "DaoPostgreSQL/daoPostgreSQL.c" },
-			{ "DaoPostgreSQL/daoPostgreSQL.h" } )
-	libpq_objs.UseProject( libpq )
-	libpq_dll  = project.AddSharedLibrary( "dao_postgresql", libpq_objs )
-	libpq_dll.UseSharedLibrary( libpq )
-	libpq_dll.UseSharedLibrary( project, "dao_sql" )
-	project.Install( DaoMake::Variables[ "INSTALL_MOD" ], libpq_dll );
-}
+project.Install( DaoMake::Variables[ "INSTALL_MOD" ], daosql_lib );
 
 
+project.AddDirectory( "DaoSQLite", "DaoSQLite" );
+project.AddDirectory( "DaoPostgreSQL", "DaoPostgreSQL" );
+project.AddDirectory( "DaoMySQL", "DaoMySQL" );
 
-#project.GenerateFinder( $TRUE );
-#project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_dll );
-#project.Install( DaoMake::Variables[ "INSTALL_MOD" ], mysql_dll );
+project.GenerateFinder( $TRUE );
+findpkg = DaoMake::MakePath( project.BinaryPath(), "FindDaoSQL.dao" );
+project.Install( DaoMake::Variables[ "INSTALL_FINDER" ], findpkg );
+

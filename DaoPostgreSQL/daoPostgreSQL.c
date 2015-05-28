@@ -82,7 +82,7 @@ static DaoFuncItem modelMeths[]=
 
 static DaoTypeBase DaoPostgreSQLDB_Typer = 
 { "SQLDatabase<PostgreSQL>", NULL, NULL, modelMeths, 
-	{ & DaoSQLDatabase_Typer, 0 }, {0}, 
+	{ & DaoSQLDatabase_Typer, NULL }, { NULL }, 
 	(FuncPtrDel) DaoPostgreSQLDB_Delete, NULL };
 
 static DaoType *dao_type_postgresql_database = NULL;
@@ -96,7 +96,7 @@ DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 	self->model = model;
 	self->res = NULL;
 	self->name = DString_New();
-	sprintf( buf, "PQ_STMT_%p", clock() );
+	sprintf( buf, "PQ_STMT_%p", (void*)clock() );
 	DString_SetChars( self->name, buf );
 	return self;
 }
@@ -245,7 +245,7 @@ static DaoFuncItem handleMeths[]=
 
 static DaoTypeBase DaoPostgreSQLHD_Typer = 
 { "SQLHandle<PostgreSQL>", NULL, NULL, handleMeths, 
-	{ & DaoSQLHandle_Typer, 0 }, {0},
+	{ & DaoSQLHandle_Typer, NULL }, { NULL },
 	(FuncPtrDel) DaoPostgreSQLHD_Delete, NULL };
 
 static DaoType *dao_type_postgresql_handle = NULL;
@@ -1286,9 +1286,9 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 }
 
 
-int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
+int DaoPostgresql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
-	DaoVmSpace_LinkModule( vms, ns, "sql" );
+	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	DaoNamespace_DefineType( ns, "int", "PostgreSQL" );
 	DaoNamespace_DefineType( ns, "map<string,string>", "HSTORE" );
 	DaoNamespace_DefineType( ns, "tuple<...>", "JSON" );

@@ -400,7 +400,7 @@ static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 	sqlite3_reset( handle->stmt );
 }
 
-int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
+int DaoSqlite_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	DaoVmSpace_LinkModule( vms, ns, "sql" );
 	DaoNamespace_DefineType( ns, "int", "SQLite" );

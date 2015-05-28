@@ -431,7 +431,7 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
 }
 
-int DaoOnLoad( DaoVmSpace *vms, DaoNamespace *ns )
+int DaoMysql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	DaoVmSpace_LinkModule( vms, ns, "sql" );
 	DaoNamespace_DefineType( ns, "int", "MySQL" );
