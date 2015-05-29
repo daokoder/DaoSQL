@@ -29,7 +29,6 @@ sqlite_lib.UseSharedLibrary( sqlite )
 project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_dll );
 project.Install( DaoMake::Variables[ "INSTALL_MOD" ], sqlite_lib );
 
-project.GenerateFinder( $TRUE );
-findpkg = DaoMake::MakePath( project.BinaryPath(), "FindDaoSqlite.dao" );
+findpkg = project.GenerateFinder( $TRUE );
 project.Install( DaoMake::Variables[ "INSTALL_FINDER" ], findpkg );
 

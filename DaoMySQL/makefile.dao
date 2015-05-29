@@ -29,7 +29,6 @@ mysql_lib.UseSharedLibrary( mysql )
 project.Install( DaoMake::Variables[ "INSTALL_MOD" ], mysql_dll );
 project.Install( DaoMake::Variables[ "INSTALL_MOD" ], mysql_lib );
 
-project.GenerateFinder( $TRUE );
-findpkg = DaoMake::MakePath( project.BinaryPath(), "FindDaoMysql.dao" );
+findpkg = project.GenerateFinder( $TRUE );
 project.Install( DaoMake::Variables[ "INSTALL_FINDER" ], findpkg );
 

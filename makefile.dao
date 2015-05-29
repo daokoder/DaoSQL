@@ -33,7 +33,6 @@ project.AddDirectory( "DaoSQLite", "DaoSQLite" );
 project.AddDirectory( "DaoPostgreSQL", "DaoPostgreSQL" );
 project.AddDirectory( "DaoMySQL", "DaoMySQL" );
 
-project.GenerateFinder( $TRUE );
-findpkg = DaoMake::MakePath( project.BinaryPath(), "FindDaoSQL.dao" );
+findpkg = project.GenerateFinder( $TRUE );
 project.Install( DaoMake::Variables[ "INSTALL_FINDER" ], findpkg );
 

@@ -29,7 +29,6 @@ libpq_lib.UseSharedLibrary( libpq )
 project.Install( DaoMake::Variables[ "INSTALL_MOD" ], libpq_dll );
 project.Install( DaoMake::Variables[ "INSTALL_MOD" ], libpq_lib );
 
-project.GenerateFinder( $TRUE );
-findpkg = DaoMake::MakePath( project.BinaryPath(), "FindDaoPostgresql.dao" );
+findpkg = project.GenerateFinder( $TRUE );
 project.Install( DaoMake::Variables[ "INSTALL_FINDER" ], findpkg );
 
