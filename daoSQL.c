@@ -39,19 +39,19 @@ static void DaoSQLDatabase_GetPassword( DaoProcess *proc, DaoValue *p[], int N )
 
 static DaoFuncItem modelMeths[]=
 {
-	{ DaoSQLDatabase_SetName,      "SetName( self: SQLDatabase, name: string )" },
-	{ DaoSQLDatabase_GetName,      "GetName( self: SQLDatabase) => string" },
-	{ DaoSQLDatabase_SetHost,      "SetHost( self: SQLDatabase, host: string )" },
-	{ DaoSQLDatabase_GetHost,      "GetHost( self: SQLDatabase) => string" },
-	{ DaoSQLDatabase_SetUser,      "SetUser( self: SQLDatabase, user: string )" },
-	{ DaoSQLDatabase_GetUser,      "GetUser( self: SQLDatabase) => string" },
-	{ DaoSQLDatabase_SetPassword,  "SetPassword( self: SQLDatabase, pwd: string )" },
-	{ DaoSQLDatabase_GetPassword,  "GetPassword( self: SQLDatabase) => string" },
+	{ DaoSQLDatabase_SetName,      "SetName( self: Database, name: string )" },
+	{ DaoSQLDatabase_GetName,      "GetName( self: Database) => string" },
+	{ DaoSQLDatabase_SetHost,      "SetHost( self: Database, host: string )" },
+	{ DaoSQLDatabase_GetHost,      "GetHost( self: Database) => string" },
+	{ DaoSQLDatabase_SetUser,      "SetUser( self: Database, user: string )" },
+	{ DaoSQLDatabase_GetUser,      "GetUser( self: Database) => string" },
+	{ DaoSQLDatabase_SetPassword,  "SetPassword( self: Database, pwd: string )" },
+	{ DaoSQLDatabase_GetPassword,  "GetPassword( self: Database) => string" },
 	{ NULL, NULL }
 };
 
 DaoTypeBase DaoSQLDatabase_Typer = 
-{ "SQLDatabase<>", NULL, NULL, modelMeths, {0}, {0}, NULL, NULL };
+{ "Database<>", NULL, NULL, modelMeths, {0}, {0}, NULL, NULL };
 
 static void DaoSQLDatabase_SetName( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -131,6 +131,7 @@ void DaoSQLHandle_Clear( DaoSQLHandle *self )
 	DList_Delete( self->countList );
 }
 static void DaoSQLHandle_SQLString( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLHandle_Inline( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Set( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Where( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Add( DaoProcess *proc, DaoValue *p[], int N );
@@ -147,47 +148,51 @@ static void DaoSQLHandle_Not( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_LBrace( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_RBrace( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLHandle_GroupBy( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem handlerMeths[]=
 {
-	{ DaoSQLHandle_SQLString, "SQLString( self: @SQLHandle )=>string" },
-	{ DaoSQLHandle_Where,  "Where( self: @SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_Set, "Set( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_Add, "Add( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_EQ, "EQ( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_NE, "NE( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GT, "GT( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GE, "GE( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LT, "LT( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LE, "LE( self: @SQLHandle, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_Set,"Set( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_Add,"Add( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_EQ, "EQ( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_NE, "NE( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GT, "GT( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_GE, "GE( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LT, "LT( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_LE, "LE( self: @SQLHandle, table: class, field: string, value: any=none )=>@SQLHandle" },
-	{ DaoSQLHandle_IN, "In( self: @SQLHandle, field: string, values:list<@T>={} )=>@SQLHandle" },
-	{ DaoSQLHandle_IN, "In( self: @SQLHandle, table: class, field: string, values:list<@T>={} )=>@SQLHandle" },
-	{ DaoSQLHandle_OR,"Or( self: @SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_And, "And( self: @SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_Not,     "Not( self: @SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_LBrace,  "LBrace( self: @SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_RBrace,  "RBrace( self: @SQLHandle )=>@SQLHandle" },
-	{ DaoSQLHandle_Match,   "Match( self: @SQLHandle, table1: class, table2: class, field1=\"\", field2=\"\" )=>@SQLHandle" },
-	{ DaoSQLHandle_Sort,  "Sort( self: @SQLHandle, field: string, desc=0 )=>@SQLHandle" },
-	{ DaoSQLHandle_Sort,  "Sort( self: @SQLHandle, table: class, field: string, desc=0 )=>@SQLHandle" },
-	{ DaoSQLHandle_Range, "Range( self: @SQLHandle, limit :int, offset=0 )=>@SQLHandle" },
-	{ DaoSQLHandle_Stop,  "Stop( self: @SQLHandle )" },
+	{ DaoSQLHandle_SQLString, "SQLString( self: @Handle )=>string" },
+	{ DaoSQLHandle_Where,  "Where( self: @Handle )=>@Handle" },
+	{ DaoSQLHandle_Inline, "Inline( self: @Handle, field: string )=>@Handle" },
+	{ DaoSQLHandle_Set, "Set( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_Add, "Add( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_EQ, "EQ( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_NE, "NE( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_GT, "GT( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_GE, "GE( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_LT, "LT( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_LE, "LE( self: @Handle, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_Set,"Set( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_Add,"Add( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_EQ, "EQ( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_NE, "NE( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_GT, "GT( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_GE, "GE( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_LT, "LT( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_LE, "LE( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_IN, "In( self: @Handle, field: string, values:list<@T>={} )=>@Handle" },
+	{ DaoSQLHandle_IN, "In( self: @Handle, table: class, field: string, values:list<@T>={} )=>@Handle" },
+	{ DaoSQLHandle_OR,"Or( self: @Handle )=>@Handle" },
+	{ DaoSQLHandle_And, "And( self: @Handle )=>@Handle" },
+	{ DaoSQLHandle_Not,     "Not( self: @Handle )=>@Handle" },
+	{ DaoSQLHandle_LBrace,  "LBrace( self: @Handle )=>@Handle" },
+	{ DaoSQLHandle_RBrace,  "RBrace( self: @Handle )=>@Handle" },
+	{ DaoSQLHandle_Match,   "Match( self: @Handle, table1: class, table2: class, field1=\"\", field2=\"\" )=>@Handle" },
+	{ DaoSQLHandle_GroupBy,  "GroupBy( self: @Handle, field: string )=>@Handle" },
+	{ DaoSQLHandle_GroupBy,  "GroupBy( self: @Handle, table: class, field: string )=>@Handle" },
+	{ DaoSQLHandle_Sort,  "Sort( self: @Handle, field: string, desc=0 )=>@Handle" },
+	{ DaoSQLHandle_Sort,  "Sort( self: @Handle, table: class, field: string, desc=0 )=>@Handle" },
+	{ DaoSQLHandle_Range, "Range( self: @Handle, limit :int, offset=0 )=>@Handle" },
+	{ DaoSQLHandle_Stop,  "Stop( self: @Handle )" },
 	{ NULL, NULL }
 };
 
 DaoTypeBase DaoSQLHandle_Typer = 
-{ "SQLHandle<>", NULL, NULL, handlerMeths, {0}, {0}, NULL, NULL };
+{ "Handle<>", NULL, NULL, handlerMeths, {0}, {0}, NULL, NULL };
 
 DString* DaoSQLDatabase_TableName( DaoClass *klass )
 {
@@ -267,6 +272,17 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 		}
 	}
 	DString_AppendChars( sql, "\n);\n" );
+	//printf( "%s\n", sql->chars );
+}
+void DaoSQLDatabase_DeleteTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql )
+{
+	DString *tabname = NULL;
+
+	DString_Clear( sql );
+	tabname = DaoSQLDatabase_TableName( klass );
+	DString_AppendChars( sql, "DROP TABLE " );
+	DString_Append( sql, tabname );
+	DString_AppendChars( sql, ";\n" );
 	//printf( "%s\n", sql->chars );
 }
 int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N )
@@ -470,11 +486,11 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 			}else if( type->tid == DAO_TUPLE && self->database->type == DAO_POSTGRESQL ){
 				DaoTuple *json = object ? (DaoTuple*) object->objValues[j] : NULL ;
 				DString *path;
-				if( json->size == 0 ) goto HandleNormalField;
 				if( object == NULL ){
 					DaoProcess_RaiseError( proc, "Param", "JSON field requires instance for Select()" );
 					return 0;
 				}
+				if( json->size == 0 ) goto HandleNormalField;
 				path = DString_New();
 				if( ntable >1 ){
 					DString_Append( path, tabname );
@@ -483,6 +499,16 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 				DString_Append( path, klass->objDataName->items.pString[j] );
 				k = DaoTuple_ToPath( json, path, self->sqlSource, proc, k );
 				DString_Delete( path );
+			}else if( type->tid == DAO_INTEGER && DString_FindChars( type->name, "COUNT", 0 ) == 0 ){
+				DString *sql = self->sqlSource;
+				if( k++ ) DString_AppendChars( self->sqlSource, "," );
+				if( DString_FindChars( type->name, "COUNT_DISTINCT_", 0 ) == 0 ){
+					DString_AppendChars( sql, "COUNT(DISTINCT " );
+					DString_AppendChars( sql, type->name->chars + strlen("COUNT_DISTINCT_") );
+					DString_AppendChars( sql, ")" );
+				}else if( DString_FindChars( type->name, "COUNT", 0 ) == 0 ){
+					DString_AppendChars( sql, "COUNT(1)" );
+				}
 			}else{
 HandleNormalField:
 				if( k++ ) DString_AppendChars( self->sqlSource, "," );
@@ -549,6 +575,15 @@ void DString_AppendSQL( DString *self, DString *content, int escape, const char 
 	DString_Append( self, mbstring );
 	DString_AppendChars( self, quote );
 	DString_Delete( mbstring );
+}
+static void DaoSQLHandle_Inline( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoProcess_PutValue( proc, p[0] );
+
+	if( handler->boolCount ) DString_AppendChars( handler->sqlSource, " AND " );
+	DString_Append( handler->sqlSource, p[1]->xString.value );
+	handler->boolCount += 1;
 }
 static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add )
 {
@@ -830,6 +865,21 @@ static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N )
 		}
 	}
 }
+static void DaoSQLHandle_GroupBy( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoProcess_PutValue( proc, p[0] );
+	DString_AppendChars( handler->sqlSource, " GROUP BY " );
+	if( p[1]->type == DAO_CLASS ){
+		DString *tabname = DaoSQLDatabase_TableName( (DaoClass*) p[1] );
+		DString_Append( handler->sqlSource, tabname );
+		DString_AppendChars( handler->sqlSource, "." );
+		DString_Append( handler->sqlSource, p[2]->xString.value );
+	}else{
+		DString_Append( handler->sqlSource, p[1]->xString.value );
+	}
+	//printf( "%s\n", handler->sqlSource->chars );
+}
 static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
@@ -888,54 +938,59 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
 
-	DaoNamespace_DefineType( ns, "int", "INTEGER" );
-	DaoNamespace_DefineType( ns, "int", "SMALLINT" );
-	dao_sql_type_bigint = DaoNamespace_DefineType( ns, "int", "BIGINT" );
+	DaoNamespace *sqlns = DaoNamespace_GetNamespace( ns, "SQL" );
 
-	dao_sql_type_integer_primary_key = DaoNamespace_DefineType( ns, "int", "INTEGER_PRIMARY_KEY" );
+	DaoNamespace_DefineType( sqlns, "int", "COUNT" );
+
+	DaoNamespace_DefineType( sqlns, "int", "INTEGER" );
+	DaoNamespace_DefineType( sqlns, "int", "SMALLINT" );
+	dao_sql_type_bigint = DaoNamespace_DefineType( sqlns, "int", "BIGINT" );
+
+	dao_sql_type_integer_primary_key
+		= DaoNamespace_DefineType( sqlns, "int", "INTEGER_PRIMARY_KEY" );
 	dao_sql_type_integer_primary_key_auto_increment
-		= DaoNamespace_DefineType( ns, "int", "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" );
+		= DaoNamespace_DefineType( sqlns, "int", "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" );
 
-	dao_sql_type_real = DaoNamespace_DefineType( ns, "float", "REAL" );
-	dao_sql_type_float = DaoNamespace_DefineType( ns, "float", "FLOAT" );
-	dao_sql_type_double = DaoNamespace_DefineType( ns, "float", "DOUBLE_PRECISION" );
+	dao_sql_type_real = DaoNamespace_DefineType( sqlns, "float", "REAL" );
+	dao_sql_type_float = DaoNamespace_DefineType( sqlns, "float", "FLOAT" );
+	dao_sql_type_double = DaoNamespace_DefineType( sqlns, "float", "DOUBLE_PRECISION" );
 
-	DaoNamespace_DefineType( ns, "string", "TEXT" );
-	DaoNamespace_DefineType( ns, "string", "MEDIUMTEXT" );
-	DaoNamespace_DefineType( ns, "string", "LONGTEXT" );
-	DaoNamespace_DefineType( ns, "string", "BLOB" );
-	DaoNamespace_DefineType( ns, "string", "MEDIUMBLOB" );
-	DaoNamespace_DefineType( ns, "string", "LONGBLOB" );
+	DaoNamespace_DefineType( sqlns, "string", "TEXT" );
+	DaoNamespace_DefineType( sqlns, "string", "MEDIUMTEXT" );
+	DaoNamespace_DefineType( sqlns, "string", "LONGTEXT" );
+	DaoNamespace_DefineType( sqlns, "string", "BLOB" );
+	DaoNamespace_DefineType( sqlns, "string", "MEDIUMBLOB" );
+	DaoNamespace_DefineType( sqlns, "string", "LONGBLOB" );
 
 	/*
 	// For char(x) or varchar(x) with any x, one can use:
 	// type charx = string
 	// type varcharx = string
 	*/
-	DaoNamespace_DefineType( ns, "string", "CHAR1" );
-	DaoNamespace_DefineType( ns, "string", "CHAR2" );
-	DaoNamespace_DefineType( ns, "string", "CHAR4" );
-	DaoNamespace_DefineType( ns, "string", "CHAR8" );
-	DaoNamespace_DefineType( ns, "string", "CHAR16" );
-	DaoNamespace_DefineType( ns, "string", "CHAR32" );
-	DaoNamespace_DefineType( ns, "string", "CHAR64" );
-	DaoNamespace_DefineType( ns, "string", "CHAR128" );
-	DaoNamespace_DefineType( ns, "string", "CHAR256" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR1" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR2" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR4" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR8" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR16" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR32" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR64" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR128" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR256" );
 
-	DaoNamespace_DefineType( ns, "string", "VARCHAR8" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR16" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR32" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR64" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR128" );
-	DaoNamespace_DefineType( ns, "string", "VARCHAR256" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR8" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR16" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR32" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR64" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR128" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR256" );
 
-	dao_sql_type_date = DaoNamespace_DefineType( ns,
+	dao_sql_type_date = DaoNamespace_DefineType( sqlns,
 			"tuple<year: int, month: int, day: int>", "DATE" );
-	dao_sql_type_timestamp = DaoNamespace_DefineType( ns,
+	dao_sql_type_timestamp = DaoNamespace_DefineType( sqlns,
 			"tuple<year: int, month: int, day: int, hour: int, minute: int, second: float>",
 			"TIMESTAMP" );
 
-	DaoNamespace_WrapTypes( ns, typers );
+	DaoNamespace_WrapTypes( sqlns, typers );
 
 	if( lang ){
 		char fname[100] = "help_module_official_sql_";

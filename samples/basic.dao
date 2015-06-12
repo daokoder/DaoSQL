@@ -4,14 +4,14 @@ load sqlite;
 # class that can be mapped to a database table
 class Gene
 {
-	var id   : INTEGER_PRIMARY_KEY_AUTO_INCREMENT;
-	var name : VARCHAR128;
-	var seq  : TEXT;
+	var id   : SQL::INTEGER_PRIMARY_KEY_AUTO_INCREMENT;
+	var name : SQL::VARCHAR128;
+	var seq  : SQL::TEXT;
 }
 # connect database
 #db = SQLDatabase<PostgreSQL>( "dbname", "host", "user", "pwd" );
 #db = SQLDatabase<MySQL>( "dbname", "host", "user", "pwd" );
-db = SQLDatabase<SQLite>( "Test_Gene.db" );
+db = SQL::Database<SQL::SQLite>( "Test_Gene.db" );
 
 # create a table for class Gene
 std.exec {

@@ -60,6 +60,7 @@ extern DaoTypeBase DaoSQLDatabase_Typer;
 extern DaoTypeBase DaoSQLHandle_Typer;
 
 void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql );
+void DaoSQLDatabase_DeleteTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql );
 int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N );
 int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N );
 int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N );

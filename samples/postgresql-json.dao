@@ -3,14 +3,14 @@ load postgresql
 
 class Event
 {
-	var  name        : VARCHAR256;
-	var  visitor_id  : VARCHAR256;
-	var  properties  : JSON;
-	var  browser     : JSON;
+	var  name        : SQL::VARCHAR256;
+	var  visitor_id  : SQL::VARCHAR256;
+	var  properties  : SQL::JSON;
+	var  browser     : SQL::JSON;
 }
 
 
-db = SQLDatabase<PostgreSQL>( "test_db", "localhost", "min" );
+db = SQL::Database<SQL::PostgreSQL>( "test_db", "localhost", "min" );
 
 std.exec {
 	defer(any){ return none }
