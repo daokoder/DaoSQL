@@ -6,6 +6,7 @@
 #ifndef __DAO_SQL__
 #define __DAO_SQL__
 
+#include<stdint.h>
 #include"daoType.h"
 #include"daoClass.h"
 #include"daoObject.h"
@@ -69,6 +70,11 @@ int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 
 void DString_AppendSQL( DString *self, DString *content, int escape, const char *quote );
 DString* DaoSQLDatabase_TableName( DaoClass *klass );
+
+int32_t DaoSQL_EncodeDate( DaoTuple *tuple );
+int64_t DaoSQL_EncodeTimestamp( DaoTuple *tuple );
+void DaoSQL_DecodeDate( DaoTuple *tuple, int32_t date_days );
+void DaoSQL_DecodeTimestamp( DaoTuple *tuple, int64_t time_msec );
 
 extern DaoType *dao_sql_type_bigint;
 extern DaoType *dao_sql_type_integer_primary_key;

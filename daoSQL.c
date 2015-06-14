@@ -246,6 +246,18 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			}else{
 				DString_AppendChars( sql, "INTEGER PRIMARY KEY AUTO_INCREMENT" );
 			}
+		}else if( type == dao_sql_type_date ){
+			if( self->type == DAO_POSTGRESQL ){
+				DString_AppendChars( sql, tpname );
+			}else{
+				DString_AppendChars( sql, "INTEGER" );
+			}
+		}else if( type == dao_sql_type_timestamp ){
+			if( self->type == DAO_POSTGRESQL ){
+				DString_AppendChars( sql, tpname );
+			}else{
+				DString_AppendChars( sql, "BIGINT" );
+			}
 		}else if( type == dao_sql_type_double ){
 			DString_AppendChars( sql, "DOUBLE PRECISION" );
 		}else if( strstr( tpname, "CHAR" ) == tpname ){
@@ -296,7 +308,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 
 	for(i=1; i<N; ++i){
 		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
-			DaoProcess_RaiseError( proc, "Param", "" );
+			DaoProcess_RaiseError( proc, "Param", "Not an object or objects of the same type" );
 			return 0;
 		}
 		object = (DaoObject*) p[1];
@@ -924,6 +936,92 @@ static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N )
 }
 
 
+int FloorDiv( int a, int b ) 
+{
+    return (a - (a < 0? b - 1 : 0))/b;
+}
+
+int ToJulianDay( int year, int month, int day )
+{
+    int a = FloorDiv(14 - month, 12);
+    year += 4800 - a;
+    month += 12*a - 3;
+	day += FloorDiv( 153*month + 2, 5 ) + 365*year;
+	day += FloorDiv( year, 4 ) - FloorDiv( year, 100 ) + FloorDiv( year, 400 );
+	return day - 32045;
+}
+void FromJulianDay( int jday, int *year, int *month, int *day )
+{
+	int F = jday + 1401 + (((4*jday + 274277) / 146097) * 3) / 4 - 38;
+	int E = 4*F + 3;
+	int G = (E%1461) / 4;
+	int H = 5*G + 2;
+	*day = (H%153) / 5 + 1;
+	*month = ((H/153 + 2) % 12) + 1;
+	*year = (E/1461) - 4716 + (12 + 2 - *month) / 12;
+}
+
+int32_t DaoSQL_EncodeDate( DaoTuple *tuple )
+{
+	if( DaoType_GetBaseType( tuple->ctype ) == dao_sql_type_date ){
+		int year = tuple->values[0]->xInteger.value;
+		int month = tuple->values[1]->xInteger.value;
+		int day = tuple->values[2]->xInteger.value;
+		int epoch_day = ToJulianDay( 2000, 1, 1 );
+		int stamp_day = ToJulianDay( year, month, day );
+		return stamp_day - epoch_day;
+	}
+	return 0;
+}
+int64_t DaoSQL_EncodeTimestamp( DaoTuple *tuple )
+{
+	if( DaoType_GetBaseType( tuple->ctype ) == dao_sql_type_timestamp ){
+		int year = tuple->values[0]->xInteger.value;
+		int month = tuple->values[1]->xInteger.value;
+		int day = tuple->values[2]->xInteger.value;
+		int64_t epoch_day = ToJulianDay( 2000, 1, 1 );
+		int64_t stamp_day = ToJulianDay( year, month, day );
+		double pg_time = (stamp_day - epoch_day) * 24 * 3600;
+		pg_time += tuple->values[3]->xInteger.value * 3600;
+		pg_time += tuple->values[4]->xInteger.value * 60;
+		pg_time += tuple->values[5]->xFloat.value;
+		return pg_time * 1E6;
+	}
+	return 0;
+}
+void DaoSQL_DecodeDate( DaoTuple *tuple, int32_t date_days )
+{
+	int64_t epoch_jday = ToJulianDay( 2000, 1, 1 );
+	int64_t stamp_jday = epoch_jday + date_days;
+	int year = 0, month = 0, day = 0;
+
+	if( DaoType_GetBaseType( tuple->ctype ) != dao_sql_type_date ) return;
+
+	FromJulianDay( stamp_jday, & year, & month, & day );
+	tuple->values[0]->xInteger.value = year;
+	tuple->values[1]->xInteger.value = month;
+	tuple->values[2]->xInteger.value = day;
+}
+void DaoSQL_DecodeTimestamp( DaoTuple *tuple, int64_t stamp_msec )
+{
+	int64_t epoch_jday = ToJulianDay( 2000, 1, 1 );
+	int64_t stamp_sec = stamp_msec / 1E6 + epoch_jday * 24 * 3600;
+	int64_t stamp_jday = stamp_sec / (24 * 3600);
+	int year = 0, month = 0, day = 0;
+
+	if( DaoType_GetBaseType( tuple->ctype ) != dao_sql_type_timestamp ) return;
+
+	FromJulianDay( stamp_jday, & year, & month, & day );
+	tuple->values[0]->xInteger.value = year;
+	tuple->values[1]->xInteger.value = month;
+	tuple->values[2]->xInteger.value = day;
+	stamp_sec = stamp_sec % (24 * 3600);
+	tuple->values[3]->xInteger.value = stamp_sec / 3600;
+	tuple->values[4]->xInteger.value = (stamp_sec % 3600) / 60;
+	tuple->values[5]->xFloat.value = (stamp_sec % 60) + (stamp_msec % 1000000)/1E6;
+}
+
+
 DaoType *dao_sql_type_bigint = NULL;
 DaoType *dao_sql_type_integer_primary_key = NULL;
 DaoType *dao_sql_type_integer_primary_key_auto_increment = NULL;
@@ -991,6 +1089,8 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 			"TIMESTAMP" );
 
 	DaoNamespace_WrapTypes( sqlns, typers );
+
+	DaoNamespace_AddValue( sqlns, "Engines", (DaoValue*)DaoMap_New(0), "map<string,any>" );
 
 	if( lang ){
 		char fname[100] = "help_module_official_sql_";

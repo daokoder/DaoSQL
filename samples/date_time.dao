@@ -1,0 +1,35 @@
+load sqlite;
+load mysql;
+
+io.writeln( SQL::Engines )
+
+# class that can be mapped to a database table
+class DateTime
+{
+	var id       : SQL::INTEGER_PRIMARY_KEY_AUTO_INCREMENT;
+	var date     : SQL::DATE;
+	var tmstamp  : SQL::TIMESTAMP;
+}
+#db = SQL::Database<SQL::SQLite>( "Test_DateTime.db" );
+db = SQL::Database<SQL::MySQL>( "test", "localhost", "root", "" );
+
+# create a table for class DateTime
+std.exec {
+	defer(any){ return none }
+	db.CreateTable( DateTime );
+}
+
+dt = DateTime.{ 0, (2015,1,1), (2015,1,1,8,8,9.5) };
+dt2 = DateTime.{ 0, (2013,1,1), (2013,1,1,8,8,9.5) };
+# insert a record into the table
+db.Insert( dt, dt2 );
+
+# SELECT * FROM DateTime WHERE name = "RASE";
+h = db.Select( DateTime );
+io.writeln( std.about(h) )
+
+# query and store the result into "dt" object:
+h.Query( dt ){
+	io.writeln( dt.id, dt.date, dt.tmstamp );
+	return $continue;
+}

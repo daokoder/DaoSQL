@@ -159,6 +159,42 @@ static void DaoSQLiteDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	sqlite3_finalize( stmt );
 	DaoProcess_PutBoolean( proc, 1 );
 }
+static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index, DaoProcess *proc )
+{
+	DaoType *type = self->base.partypes[index-1];
+	sqlite3 *db = self->model->db;
+	sqlite3_stmt *stmt = self->stmt;
+	int k = SQLITE_MISUSE;
+	switch( value->type ){
+	case DAO_NONE :
+		k = sqlite3_bind_null( stmt, index );
+		break;
+	case DAO_INTEGER :
+		if( type == dao_sql_type_bigint ){
+			k = sqlite3_bind_int64( stmt, index, value->xInteger.value );
+		}else{
+			k = sqlite3_bind_int( stmt, index, value->xInteger.value );
+		}
+		break;
+	case DAO_FLOAT   :
+		k = sqlite3_bind_double( stmt, index, value->xFloat.value );
+		break;
+	case DAO_STRING  :
+		k = sqlite3_bind_text( stmt, index, value->xString.value->chars, value->xString.value->size, SQLITE_TRANSIENT );
+		break;
+	case DAO_TUPLE :
+		if( type == dao_sql_type_date ){
+			int days = DaoSQL_EncodeDate( (DaoTuple*) value );
+			k = sqlite3_bind_int( stmt, index, days );
+		}else if( type == dao_sql_type_timestamp ){
+			int64_t msecs = DaoSQL_EncodeTimestamp( (DaoTuple*) value );
+			k = sqlite3_bind_int64( stmt, index, msecs );
+		}
+		break;
+	default : break;
+	}
+	if( k ) DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( db ) );
+}
 static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, DaoObject *object )
 {
 	DaoValue *value;
@@ -168,6 +204,8 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 	sqlite3_stmt *stmt = handle->stmt;
 	char *tpname;
 	int i, k, key = 0;
+
+	sqlite3_reset( handle->stmt );
 	for(i=1; i<klass->objDataName->size; i++){
 		DaoType *type = DaoType_GetBaseType( vars[i]->dtype );
 		tpname = type->name->chars;
@@ -178,23 +216,7 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 			sqlite3_bind_null( stmt, i );
 			continue;
 		}
-		k = SQLITE_MISUSE;
-		switch( value->type ){
-		case DAO_NONE :
-			k = sqlite3_bind_null( stmt, i );
-			break;
-		case DAO_INTEGER :
-			k = sqlite3_bind_int( stmt, i, value->xInteger.value );
-			break;
-		case DAO_FLOAT   :
-			k = sqlite3_bind_double( stmt, i, value->xFloat.value );
-			break;
-		case DAO_STRING  :
-			k = sqlite3_bind_text( stmt, i, value->xString.value->chars, value->xString.value->size, SQLITE_TRANSIENT );
-			break;
-		default : break;
-		}
-		if( k ) DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( db ) );
+		DaoSQLiteHD_BindValue( handle, value, i, proc );
 	}
 	k = sqlite3_step( handle->stmt );
 	if( k > SQLITE_OK && k < SQLITE_ROW )
@@ -275,23 +297,7 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
-	k = SQLITE_MISUSE;
-	switch( value->type ){
-		case DAO_NONE :
-			k = sqlite3_bind_null( stmt, index );
-			break;
-		case DAO_INTEGER :
-			k = sqlite3_bind_int( stmt, index, value->xInteger.value );
-			break;
-		case DAO_FLOAT :
-			k = sqlite3_bind_double( stmt, index, value->xFloat.value );
-			break;
-		case DAO_STRING :
-			k = sqlite3_bind_text( stmt, index, value->xString.value->chars, value->xString.value->size, SQLITE_TRANSIENT );
-			break;
-		default : break;
-	}
-	if( k ) DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( db ) );
+	DaoSQLiteHD_BindValue( handle, value, index, proc );
 }
 static int DaoSQLiteHD_TryPrepare( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -340,10 +346,10 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 			}
 			switch( type->tid ){
 			case DAO_INTEGER :
-				if( sizeof(daoint) == 4 ){
-					value->xInteger.value = sqlite3_column_int( handle->stmt, k );
-				}else{
+				if( type == dao_sql_type_bigint ){
 					value->xInteger.value = sqlite3_column_int64( handle->stmt, k );
+				}else{
+					value->xInteger.value = sqlite3_column_int( handle->stmt, k );
 				}
 				break;
 			case DAO_FLOAT   :
@@ -354,6 +360,17 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 				txt = sqlite3_column_text( handle->stmt, k );
 				count = sqlite3_column_bytes( handle->stmt, k );
 				if( txt ) DString_AppendBytes( value->xString.value, (const char*)txt, count );
+				break;
+			case DAO_TUPLE :
+				if( type == dao_sql_type_date ){
+					DaoTuple *tuple = (DaoTuple*) value;
+					DaoSQL_DecodeDate( tuple, sqlite3_column_int( handle->stmt, k ) );
+					break;
+				}else if( type == dao_sql_type_timestamp ){
+					DaoTuple *tuple = (DaoTuple*) value;
+					DaoSQL_DecodeTimestamp( tuple, sqlite3_column_int64( handle->stmt, k ) );
+					break;
+				}
 				break;
 			default : break;
 			}
@@ -422,10 +439,13 @@ static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 
 int DaoSqlite_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
+	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	DaoNamespace_DefineType( sqlns, "int", "SQLite" );
+	DaoNamespace_DefineType( sqlns, "$SQLite", "SQLite" );
 	dao_type_sqlite3_database = DaoNamespace_WrapType( sqlns, & DaoSQLiteDB_Typer, 1 );
 	dao_type_sqlite3_handle = DaoNamespace_WrapType( sqlns, & DaoSQLiteHD_Typer, 1 );
+	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
+	DaoMap_InsertChars( engines, "SQLite", (DaoValue*) dao_type_sqlite3_database );
 	return 0;
 }

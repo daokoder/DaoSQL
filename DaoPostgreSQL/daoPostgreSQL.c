@@ -379,30 +379,6 @@ static void DaoTuple_ToJSON( DaoTuple *self, DString *json, DaoProcess *proc )
 	//printf( "%s\n", json->chars );
 	//DString_SetChars( json, "{ \"name\": \"Firefox\" }" );
 }
-int FloorDiv( int a, int b ) 
-{
-    return (a - (a < 0? b - 1 : 0))/b;
-}
-
-int ToJulianDay( int year, int month, int day )
-{
-    int a = FloorDiv(14 - month, 12);
-    year += 4800 - a;
-    month += 12*a - 3;
-	day += FloorDiv( 153*month + 2, 5 ) + 365*year;
-	day += FloorDiv( year, 4 ) - FloorDiv( year, 100 ) + FloorDiv( year, 400 );
-	return day - 32045;
-}
-void FromJulianDay( int jday, int *year, int *month, int *day )
-{
-	int F = jday + 1401 + (((4*jday + 274277) / 146097) * 3) / 4 - 38;
-	int E = 4*F + 3;
-	int G = (E%1461) / 4;
-	int H = 5*G + 2;
-	*day = (H%153) / 5 + 1;
-	*month = ((H/153 + 2) % 12) + 1;
-	*year = (E/1461) - 4716 + (12 + 2 - *month) / 12;
-}
 
 static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, int index, DaoProcess *proc )
 {
@@ -447,75 +423,23 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		self->paramLengths[index] = mbstring->size;
 		break;
 	case DAO_TUPLE :
-#if 1
 		if( type == dao_sql_type_date ){
 			DaoTuple *tuple = (DaoTuple*) value;
-			int year = tuple->values[0]->xInteger.value;
-			int month = tuple->values[1]->xInteger.value;
-			int day = tuple->values[2]->xInteger.value;
-			int epoch_day = ToJulianDay( 2000, 1, 1 );
-			int stamp_day = ToJulianDay( year, month, day );
+			int days = DaoSQL_EncodeDate( tuple );
 			self->paramFormats[index] = 1;
 			self->paramLengths[index] = sizeof(uint32_t);
 			self->paramValues[index] = (char*) & self->paramInts32[index];
-			self->paramInts32[index] = htonl( stamp_day - epoch_day );
+			self->paramInts32[index] = htonl( days );
 			break;
 		}else if( type == dao_sql_type_timestamp ){
 			DaoTuple *tuple = (DaoTuple*) value;
-			int year = tuple->values[0]->xInteger.value;
-			int month = tuple->values[1]->xInteger.value;
-			int day = tuple->values[2]->xInteger.value;
-			int64_t epoch_day = ToJulianDay( 2000, 1, 1 );
-			int64_t stamp_day = ToJulianDay( year, month, day );
-			double pg_time = (stamp_day - epoch_day) * 24 * 3600;
-			pg_time += tuple->values[3]->xInteger.value * 3600;
-			pg_time += tuple->values[4]->xInteger.value * 60;
-			pg_time += tuple->values[5]->xFloat.value;
+			int64_t ts = DaoSQL_EncodeTimestamp( tuple );
 			self->paramFormats[index] = 1;
 			self->paramLengths[index] = sizeof(uint64_t);
 			self->paramValues[index] = (char*) & self->paramInts64[index];
-			self->paramInts64[index] = htobe64( pg_time * 1E6 );
+			self->paramInts64[index] = htobe64( ts );
 			break;
 		}
-#else
-		if( type == dao_sql_type_date ){
-			DaoTuple *tuple = (DaoTuple*) value;
-			struct tm tm_epoch = {0};
-			struct tm tm_stamp = {0};
-			double pg_time;
-			tm_epoch.tm_year = 2000 - 1900;
-			tm_epoch.tm_mday = 1;
-			tm_stamp.tm_year = tuple->values[0]->xInteger.value - 1900;
-			tm_stamp.tm_mon = tuple->values[1]->xInteger.value - 1;
-			tm_stamp.tm_mday = tuple->values[2]->xInteger.value;
-			pg_time = difftime( mktime( & tm_stamp ), mktime( & tm_epoch ) );
-			self->paramFormats[index] = 1;
-			self->paramLengths[index] = sizeof(uint32_t);
-			self->paramValues[index] = (char*) & self->paramInts32[index];
-			self->paramInts32[index] = htonl( pg_time / (24 * 60 * 60) );
-			break;
-		}else if( type == dao_sql_type_timestamp ){
-			DaoTuple *tuple = (DaoTuple*) value;
-			struct tm tm_epoch = {0};
-			struct tm tm_stamp = {0};
-			double pg_time;
-			/* Not properly working for dates before 1970; */
-			tm_epoch.tm_year = 2000 - 1900;
-			tm_epoch.tm_mday = 1;
-			tm_stamp.tm_year = tuple->values[0]->xInteger.value - 1900;
-			tm_stamp.tm_mon = tuple->values[1]->xInteger.value - 1;
-			tm_stamp.tm_mday = tuple->values[2]->xInteger.value;
-			tm_stamp.tm_hour = tuple->values[3]->xInteger.value;
-			tm_stamp.tm_min = tuple->values[4]->xInteger.value;
-			pg_time = difftime( mktime( & tm_stamp ), mktime( & tm_epoch ) );
-			pg_time += tuple->values[5]->xFloat.value;
-			self->paramFormats[index] = 1;
-			self->paramLengths[index] = sizeof(uint64_t);
-			self->paramValues[index] = (char*) & self->paramInts64[index];
-			self->paramInts64[index] = htobe64( pg_time * 1E6 );
-			break;
-		}
-#endif
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
 		DaoTuple_ToJSON( (DaoTuple*) value, mbstring, proc );
@@ -831,29 +755,11 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 			case DAO_TUPLE :
 				if( oid == DATEOID ){
 					DaoTuple *tuple = (DaoTuple*) value;
-					int64_t epoch_jday = ToJulianDay( 2000, 1, 1 );
-					int64_t stamp_jday = epoch_jday + ntohl(*((uint32_t *) pdata));
-					int year = 0, month = 0, day = 0;
-					FromJulianDay( stamp_jday, & year, & month, & day );
-					tuple->values[0]->xInteger.value = year;
-					tuple->values[1]->xInteger.value = month;
-					tuple->values[2]->xInteger.value = day;
+					DaoSQL_DecodeDate( tuple, ntohl(*((uint32_t *) pdata)) );
 					break;
 				}else if( oid == TIMESTAMPOID ){
 					DaoTuple *tuple = (DaoTuple*) value;
-					int64_t epoch_jday = ToJulianDay( 2000, 1, 1 );
-					int64_t stamp_msec = be64toh( *(uint64_t*) pdata );
-					int64_t stamp_sec = stamp_msec / 1E6 + epoch_jday * 24 * 3600;
-					int64_t stamp_jday = stamp_sec / (24 * 3600);
-					int year = 0, month = 0, day = 0;
-					FromJulianDay( stamp_jday, & year, & month, & day );
-					tuple->values[0]->xInteger.value = year;
-					tuple->values[1]->xInteger.value = month;
-					tuple->values[2]->xInteger.value = day;
-					stamp_sec = stamp_sec % (24 * 3600);
-					tuple->values[3]->xInteger.value = stamp_sec / 3600;
-					tuple->values[4]->xInteger.value = (stamp_sec % 3600) / 60;
-					tuple->values[5]->xFloat.value = (stamp_sec % 60) + (stamp_msec % 1000000)/1E6;
+					DaoSQL_DecodeTimestamp( tuple, be64toh( *(uint64_t*) pdata ) );
 					break;
 				}
 				k --;
@@ -1323,12 +1229,15 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 
 int DaoPostgresql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
+	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	DaoNamespace_DefineType( sqlns, "int", "PostgreSQL" );
+	DaoNamespace_DefineType( sqlns, "$PostgreSQL", "PostgreSQL" );
 	DaoNamespace_DefineType( sqlns, "map<string,string>", "HSTORE" );
 	DaoNamespace_DefineType( sqlns, "tuple<...>", "JSON" );
 	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLDB_Typer, 1 );
 	dao_type_postgresql_handle = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLHD_Typer, 1 );
+	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
+	DaoMap_InsertChars( engines, "PostgreSQL", (DaoValue*) dao_type_postgresql_database );
 	return 0;
 }

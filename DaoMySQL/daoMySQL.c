@@ -168,6 +168,50 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	DaoProcess_PutBoolean( proc, 1 );
 }
+static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, DaoProcess *proc )
+{
+	DaoType *type = self->base.partypes[index];
+	MYSQL_BIND *bind = self->parbind + index;
+	char *pbuf = self->base.pardata[index]->chars;
+
+	//printf( "%i: %s\n", index, type->name->chars );
+	switch( value->type ){
+	case DAO_NONE :
+		bind->buffer_type = MYSQL_TYPE_NULL;
+		break;
+	case DAO_INTEGER :
+		if( type == dao_sql_type_bigint ){
+			bind->buffer_type = MYSQL_TYPE_LONGLONG;
+			*(long long*) pbuf = value->xInteger.value;
+		}else{
+			bind->buffer_type = MYSQL_TYPE_LONG;
+			*(long*) pbuf = value->xInteger.value;
+		}
+		break;
+	case DAO_FLOAT   :
+		bind->buffer_type = MYSQL_TYPE_DOUBLE;
+		*(double*) pbuf = value->xFloat.value;
+		break;
+	case DAO_STRING  :
+		DString_SetBytes( self->base.pardata[index], value->xString.value->chars, value->xString.value->size );
+		bind->buffer_type = MYSQL_TYPE_STRING;
+		bind->buffer = self->base.pardata[index]->chars;
+		bind->buffer_length = self->base.pardata[index]->size;
+		break;
+	case DAO_TUPLE :
+		if( type == dao_sql_type_date ){
+			int days = DaoSQL_EncodeDate( (DaoTuple*) value );
+			bind->buffer_type = MYSQL_TYPE_LONG;
+			*(long*) pbuf = days;
+		}else if( type == dao_sql_type_timestamp ){
+			int64_t msecs = DaoSQL_EncodeTimestamp( (DaoTuple*) value );
+			bind->buffer_type = MYSQL_TYPE_LONGLONG;
+			*(long long*) pbuf = msecs;
+		}
+		break;
+	default : break;
+	}
+}
 static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoObject *object )
 {
 	DaoClass  *klass = object->defClass;
@@ -181,32 +225,12 @@ static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoOb
 		tpname = type->name->chars;
 		value = object->objValues[i];
 		bind = handle->parbind + (i-1);
-		pbuf = handle->base.pardata[i-1]->chars;
-		if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) k = i;
-		switch( value->type ){
-			case DAO_NONE :
-				bind->buffer_type = MYSQL_TYPE_NULL;
-				break;
-			case DAO_INTEGER :
-				if( i == k ){
-					bind->buffer_type = MYSQL_TYPE_NULL;
-				}else{
-					bind->buffer_type = MYSQL_TYPE_LONG;
-					*(long*) pbuf = value->xInteger.value;
-				}
-				break;
-			case DAO_FLOAT   :
-				bind->buffer_type = MYSQL_TYPE_DOUBLE;
-				*(double*) pbuf = value->xFloat.value;
-				break;
-			case DAO_STRING  :
-				DString_SetBytes( handle->base.pardata[i-1], value->xString.value->chars, value->xString.value->size );
-				bind->buffer_type = MYSQL_TYPE_STRING;
-				bind->buffer = handle->base.pardata[i-1]->chars;
-				bind->buffer_length = handle->base.pardata[i-1]->size;
-				break;
-			default : break;
+		if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ){
+			bind->buffer_type = MYSQL_TYPE_NULL;
+			k = i;
+			continue;
 		}
+		DaoMySQLHD_BindValue( handle, value, i-1, proc );
 	}
 	if( mysql_stmt_bind_param( handle->stmt, handle->parbind ) )
 		DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
@@ -286,26 +310,7 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
-	switch( value->type ){
-		case DAO_NONE :
-			handle->parbind[ index ].buffer_type = MYSQL_TYPE_NULL;
-			break;
-		case DAO_INTEGER :
-			handle->parbind[ index ].buffer_type = MYSQL_TYPE_LONG;
-			*(long*)handle->base.pardata[index]->chars = value->xInteger.value;
-			break;
-		case DAO_FLOAT :
-			handle->parbind[ index ].buffer_type = MYSQL_TYPE_DOUBLE;
-			*(double*)handle->base.pardata[index]->chars = value->xFloat.value;
-			break;
-		case DAO_STRING :
-			handle->parbind[ index ].buffer_type = MYSQL_TYPE_STRING;
-			DString_SetChars( handle->base.pardata[index], DString_GetData( value->xString.value ) );
-			handle->parbind[ index ].buffer = handle->base.pardata[index]->chars;
-			handle->parbind[ index ].buffer_length = handle->base.pardata[index]->size;
-			break;
-		default : break;
-	}
+	DaoMySQLHD_BindValue( handle, value, index, proc );
 }
 static int DaoMySQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -368,9 +373,15 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 			}
 			switch( type->tid ){
 			case DAO_INTEGER :
-				handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
-				mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-				value->xInteger.value =  *(int*)handle->base.resdata[0]->chars;
+				if( type == dao_sql_type_bigint ){
+					handle->resbind[0].buffer_type = MYSQL_TYPE_LONGLONG;
+					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+					value->xInteger.value =  *(long long*)handle->base.resdata[0]->chars;
+				}else{
+					handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
+					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+					value->xInteger.value =  *(long*)handle->base.resdata[0]->chars;
+				}
 				break;
 			case DAO_FLOAT   :
 				handle->resbind[0].buffer_type = MYSQL_TYPE_DOUBLE;
@@ -390,6 +401,21 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 					offset += MAX_DATA_SIZE;
 					pitch = handle->base.reslen >= offset ? MAX_DATA_SIZE : handle->base.reslen - pitch;
 					DString_AppendBytes( value->xString.value, handle->base.resdata[0]->chars, pitch );
+				}
+				break;
+			case DAO_TUPLE :
+				if( type == dao_sql_type_date ){
+					DaoTuple *tuple = (DaoTuple*) value;
+					handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
+					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+					DaoSQL_DecodeDate( tuple, *(long*)handle->base.resdata[0]->chars );
+					break;
+				}else if( type == dao_sql_type_timestamp ){
+					DaoTuple *tuple = (DaoTuple*) value;
+					handle->resbind[0].buffer_type = MYSQL_TYPE_LONGLONG;
+					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+					DaoSQL_DecodeTimestamp( tuple, *(long long*)handle->base.resdata[0]->chars );
+					break;
 				}
 				break;
 			default : break;
@@ -448,10 +474,13 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 
 int DaoMysql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
+	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	DaoNamespace_DefineType( sqlns, "int", "MySQL" );
+	DaoNamespace_DefineType( sqlns, "$MySQL", "MySQL" );
 	dao_type_mysql_database = DaoNamespace_WrapType( sqlns, & DaoMySQLDB_Typer, 1 );
 	dao_type_mysql_handle = DaoNamespace_WrapType( sqlns, & DaoMySQLHD_Typer, 1 );
+	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
+	DaoMap_InsertChars( engines, "MySQL", (DaoValue*) dao_type_mysql_database );
 	return 0;
 }
