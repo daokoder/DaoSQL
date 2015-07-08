@@ -1232,7 +1232,6 @@ int DaoPostgresql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	DaoNamespace_DefineType( sqlns, "$PostgreSQL", "PostgreSQL" );
 	DaoNamespace_DefineType( sqlns, "map<string,string>", "HSTORE" );
 	DaoNamespace_DefineType( sqlns, "tuple<...>", "JSON" );
 	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLDB_Typer, 1 );

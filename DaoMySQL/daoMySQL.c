@@ -365,6 +365,7 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 		klass = object->defClass;
 		m = handle->base.countList->items.pInt[i-1];
 		for(j=1; j<m; j++){
+			MYSQL_FIELD *field = & handle->stmt->fields[k];
 			type = DaoType_GetBaseType( klass->instvars->items.pVar[j]->dtype );
 			value = object->objValues[j];
 			if( value == NULL || value->type != type->tid ){
@@ -373,14 +374,14 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 			}
 			switch( type->tid ){
 			case DAO_INTEGER :
-				if( type == dao_sql_type_bigint ){
+				if( field->type == MYSQL_TYPE_LONGLONG ){
 					handle->resbind[0].buffer_type = MYSQL_TYPE_LONGLONG;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
 					value->xInteger.value =  *(long long*)handle->base.resdata[0]->chars;
 				}else{
 					handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					value->xInteger.value =  *(long*)handle->base.resdata[0]->chars;
+					value->xInteger.value =  *(int*)handle->base.resdata[0]->chars;
 				}
 				break;
 			case DAO_FLOAT   :
@@ -477,7 +478,6 @@ int DaoMysql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	DaoNamespace_DefineType( sqlns, "$MySQL", "MySQL" );
 	dao_type_mysql_database = DaoNamespace_WrapType( sqlns, & DaoMySQLDB_Typer, 1 );
 	dao_type_mysql_handle = DaoNamespace_WrapType( sqlns, & DaoMySQLHD_Typer, 1 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );

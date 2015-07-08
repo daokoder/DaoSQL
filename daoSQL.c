@@ -936,12 +936,12 @@ static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N )
 }
 
 
-int FloorDiv( int a, int b ) 
+static int FloorDiv( int a, int b ) 
 {
     return (a - (a < 0? b - 1 : 0))/b;
 }
 
-int ToJulianDay( int year, int month, int day )
+static int ToJulianDay( int year, int month, int day )
 {
     int a = FloorDiv(14 - month, 12);
     year += 4800 - a;
@@ -950,7 +950,7 @@ int ToJulianDay( int year, int month, int day )
 	day += FloorDiv( year, 4 ) - FloorDiv( year, 100 ) + FloorDiv( year, 400 );
 	return day - 32045;
 }
-void FromJulianDay( int jday, int *year, int *month, int *day )
+static void FromJulianDay( int jday, int *year, int *month, int *day )
 {
 	int F = jday + 1401 + (((4*jday + 274277) / 146097) * 3) / 4 - 38;
 	int E = 4*F + 3;
@@ -1035,8 +1035,13 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
+	DaoMap *engines;
 
 	DaoNamespace *sqlns = DaoNamespace_GetNamespace( ns, "SQL" );
+
+	DaoNamespace_DefineType( sqlns, "$SQLite",     "SQLite" );
+	DaoNamespace_DefineType( sqlns, "$PostgreSQL", "PostgreSQL" );
+	DaoNamespace_DefineType( sqlns, "$MySQL",      "MySQL" );
 
 	DaoNamespace_DefineType( sqlns, "int", "COUNT" );
 
@@ -1090,7 +1095,9 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 
 	DaoNamespace_WrapTypes( sqlns, typers );
 
-	DaoNamespace_AddValue( sqlns, "Engines", (DaoValue*)DaoMap_New(0), "map<string,any>" );
+	engines = DaoMap_New(0);
+	DaoMap_SetType( engines, DaoNamespace_ParseType( sqlns, "map<string,any>" ) );
+	DaoNamespace_AddConstValue( sqlns, "Engines", (DaoValue*) engines );
 
 	if( lang ){
 		char fname[100] = "help_module_official_sql_";

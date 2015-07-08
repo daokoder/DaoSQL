@@ -442,7 +442,6 @@ int DaoSqlite_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	DaoNamespace_DefineType( sqlns, "$SQLite", "SQLite" );
 	dao_type_sqlite3_database = DaoNamespace_WrapType( sqlns, & DaoSQLiteDB_Typer, 1 );
 	dao_type_sqlite3_handle = DaoNamespace_WrapType( sqlns, & DaoSQLiteHD_Typer, 1 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
