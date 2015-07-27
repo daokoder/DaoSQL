@@ -1031,6 +1031,26 @@ DaoType *dao_sql_type_double = NULL;
 DaoType *dao_sql_type_date = NULL;
 DaoType *dao_sql_type_timestamp = NULL;
 
+
+static void SQL_EncodeTS( DaoProcess *proc, DaoValue *p[], int N )
+{
+	daoint value = DaoSQL_EncodeTimestamp( (DaoTuple*) p[0] );
+	DaoProcess_PutInteger( proc, value );
+}
+static void SQL_DecodeTS( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTuple *tuple = DaoProcess_PutTuple( proc, 0 );
+	DaoSQL_DecodeTimestamp( tuple, p[0]->xInteger.value );
+}
+
+static DaoFuncItem sqlMeths[]=
+{
+	{ SQL_EncodeTS,  "Encode( ts: TIMESTAMP ) => int" },
+	{ SQL_DecodeTS,  "Decode( value: int ) => TIMESTAMP" },
+	{ NULL, NULL }
+};
+
+
 int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
 	char *lang = getenv( "DAO_HELP_LANG" );
@@ -1094,6 +1114,7 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 			"TIMESTAMP" );
 
 	DaoNamespace_WrapTypes( sqlns, typers );
+	DaoNamespace_WrapFunctions( sqlns, sqlMeths );
 
 	engines = DaoMap_New(0);
 	DaoMap_SetType( engines, DaoNamespace_ParseType( sqlns, "map<string,any>" ) );

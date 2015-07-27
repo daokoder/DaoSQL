@@ -1234,8 +1234,8 @@ int DaoPostgresql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
 	DaoNamespace_DefineType( sqlns, "map<string,string>", "HSTORE" );
 	DaoNamespace_DefineType( sqlns, "tuple<...>", "JSON" );
-	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLDB_Typer, 1 );
-	dao_type_postgresql_handle = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLHD_Typer, 1 );
+	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLDB_Typer, DAO_CDATA, 0 );
+	dao_type_postgresql_handle = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLHD_Typer, DAO_CDATA, 0 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
 	DaoMap_InsertChars( engines, "PostgreSQL", (DaoValue*) dao_type_postgresql_database );
 	return 0;
