@@ -198,13 +198,15 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 		bind->buffer = self->base.pardata[index]->chars;
 		bind->buffer_length = self->base.pardata[index]->size;
 		break;
-	case DAO_TUPLE :
-		if( type == dao_sql_type_date ){
-			int days = DaoSQL_EncodeDate( (DaoTuple*) value );
+	case DAO_CINVALUE :
+		if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
+			DaoTime *time = (DaoTime*) value->xCinValue.value;
+			int days = _DTime_ToDay( time->time );
 			bind->buffer_type = MYSQL_TYPE_LONG;
 			*(long*) pbuf = days;
-		}else if( type == dao_sql_type_timestamp ){
-			int64_t msecs = DaoSQL_EncodeTimestamp( (DaoTuple*) value );
+		}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
+			DaoTime *time = (DaoTime*) value->xCinValue.value;
+			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			bind->buffer_type = MYSQL_TYPE_LONGLONG;
 			*(long long*) pbuf = msecs;
 		}
@@ -404,19 +406,17 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 					DString_AppendBytes( value->xString.value, handle->base.resdata[0]->chars, pitch );
 				}
 				break;
-			case DAO_TUPLE :
-				if( type == dao_sql_type_date ){
-					DaoTuple *tuple = (DaoTuple*) value;
+			case DAO_CINVALUE :
+				if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
+					DaoTime *time = (DaoTime*) value->xCinValue.value;
 					handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					DaoSQL_DecodeDate( tuple, *(long*)handle->base.resdata[0]->chars );
-					break;
-				}else if( type == dao_sql_type_timestamp ){
-					DaoTuple *tuple = (DaoTuple*) value;
+					time->time = _DTime_FromDay( *(long*)handle->base.resdata[0]->chars );
+				}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
+					DaoTime *time = (DaoTime*) value->xCinValue.value;
 					handle->resbind[0].buffer_type = MYSQL_TYPE_LONGLONG;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					DaoSQL_DecodeTimestamp( tuple, *(long long*)handle->base.resdata[0]->chars );
-					break;
+					time->time = _DTime_FromMicroSeconds( *(long long*)handle->base.resdata[0]->chars );
 				}
 				break;
 			default : break;

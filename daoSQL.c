@@ -1050,14 +1050,218 @@ static DaoFuncItem sqlMeths[]=
 	{ NULL, NULL }
 };
 
+static DaoFuncItem absDateMeths[] =
+{
+	{ NULL,  ".year( self: DateType ) => int" },
+	{ NULL,  ".month( self: DateType ) => int" },
+	{ NULL,  ".day( self: DateType ) => int" },
+
+	{ NULL,  ".year=( self: DateType , value: int )" },
+	{ NULL,  ".month=( self: DateType , value: int )" },
+	{ NULL,  ".day=( self: DateType , value: int )" },
+	{ NULL, NULL }
+};
+
+DaoTypeBase absDateTyper =
+{
+	"DateType", NULL, NULL, (DaoFuncItem*) absDateMeths, {0}, {0},
+	(FuncPtrDel) NULL, NULL
+};
+
+
+static void DATE_GetYear( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	DaoProcess_PutInteger( proc, self->time.year );
+}
+static void DATE_GetMonth( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	DaoProcess_PutInteger( proc, self->time.month );
+}
+static void DATE_GetDay( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	DaoProcess_PutInteger( proc, self->time.day );
+}
+
+static void DATE_SetYear( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	self->time.year = p[1]->xInteger.value;
+}
+static void DATE_SetMonth( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	int value = p[1]->xInteger.value;
+	if( value < 1 || value > 12 ){
+		DaoProcess_RaiseError( proc, "Param", "Invalid month" );
+		return;
+	}
+	self->time.month = value;
+}
+static int LeapYear( int y )
+{
+	return (y%4 == 0 && y%100) || y%400 == 0;
+}
+
+static int DaysInMonth( int y, int m )
+{
+	const int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	if ( m > 12 )
+		return 0;
+	return ( LeapYear( y ) && m == 2 )? 29 : days[m - 1];
+}
+static void DATE_SetDay( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	int value = p[1]->xInteger.value;
+	int days = DaysInMonth( self->time.year, self->time.month );
+	if( value < 1 || value > days ){
+		DaoProcess_RaiseError( proc, "Param", "Invalid day" );
+		return;
+	}
+	self->time.day = value;
+}
+
+static DaoFuncItem conDateMeths[] =
+{
+	{ DATE_GetYear,   ".year( self: DateType2 ) => int" },
+	{ DATE_GetMonth,  ".month( self: DateType2 ) => int" },
+	{ DATE_GetDay,    ".day( self: DateType2 ) => int" },
+
+	{ DATE_SetYear,   ".year=( self: DateType2 , value: int )" },
+	{ DATE_SetMonth,  ".month=( self: DateType2 , value: int )" },
+	{ DATE_SetDay,    ".day=( self: DateType2 , value: int )" },
+	{ NULL, NULL }
+};
+
+DaoTypeBase conDateTyper =
+{
+	"DateType2", NULL, NULL, (DaoFuncItem*) conDateMeths, {0}, {0},
+	(FuncPtrDel) NULL, NULL
+};
+
+
+
+static void TIME_GetHour( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	DaoProcess_PutInteger( proc, self->time.hour );
+}
+static void TIME_GetMinute( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	DaoProcess_PutInteger( proc, self->time.minute );
+}
+static void TIME_GetSecond( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	DaoProcess_PutFloat( proc, self->time.second );
+}
+
+static void TIME_SetHour( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	int value = p[1]->xInteger.value;
+	if( value < 0 || value >= 24 ){
+		DaoProcess_RaiseError( proc, "Param", "Invalid hour" );
+		return;
+	}
+	self->time.hour = value;
+}
+static void TIME_SetMinute( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	int value = p[1]->xInteger.value;
+	if( value < 0 || value >= 60 ){
+		DaoProcess_RaiseError( proc, "Param", "Invalid minutes" );
+		return;
+	}
+	self->time.minute = value;
+}
+static void TIME_SetSecond( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *self = (DaoTime*) p[0]->xCinValue.value;
+	dao_float value = p[1]->xFloat.value;
+	if( value < 0.0 || value >= 60.0 ){
+		DaoProcess_RaiseError( proc, "Param", "Invalid seconds" );
+		return;
+	}
+	self->time.second = value;
+}
+
+static DaoFuncItem absTimeMeths[] =
+{
+//	{ NULL,  ".year( self: TimeType ) => int" },
+//	{ NULL,  ".month( self: TimeType ) => int" },
+//	{ NULL,  ".day( self: TimeType ) => int" },
+	{ NULL,  ".hour( self: TimeType ) => int" },
+	{ NULL,  ".minute( self: TimeType ) => int" },
+	{ NULL,  ".second( self: TimeType ) => float" },
+
+//	{ NULL,  ".year=( self: TimeType , value: int )" },
+//	{ NULL,  ".month=( self: TimeType , value: int )" },
+//	{ NULL,  ".day=( self: TimeType , value: int )" },
+	{ NULL,  ".hour=( self: TimeType , value: int )" },
+	{ NULL,  ".minute=( self: TimeType , value: int )" },
+	{ NULL,  ".second=( self: TimeType , value: float )" },
+	{ NULL, NULL }
+};
+
+DaoTypeBase absTimeTyper =
+{
+	"TimeType", NULL, NULL, (DaoFuncItem*) absTimeMeths, {&absDateTyper, NULL}, {0},
+	(FuncPtrDel) NULL, NULL
+};
+
+
+static void TIME_GetYear( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoTime *time = (DaoTime*) p[0]->xCinValue.value;
+	DaoProcess_PutInteger( proc, time->time.year );
+}
+
+static DaoFuncItem conTimeMeths[] =
+{
+//	{ DATE_GetYear,    ".year( self: TimeType2 ) => int" },
+//	{ DATE_GetMonth,   ".month( self: TimeType2 ) => int" },
+//	{ DATE_GetDay,     ".day( self: TimeType2 ) => int" },
+	{ TIME_GetHour,    ".hour( self: TimeType2 ) => int" },
+	{ TIME_GetMinute,  ".minute( self: TimeType2 ) => int" },
+	{ TIME_GetSecond,  ".second( self: TimeType2 ) => float" },
+
+//	{ DATE_SetYear,    ".year=( self: TimeType2 , value: int )" },
+//	{ DATE_SetMonth,   ".month=( self: TimeType2 , value: int )" },
+//	{ DATE_SetDay,     ".day=( self: TimeType2 , value: int )" },
+	{ TIME_SetHour,    ".hour=( self: TimeType2 , value: int )" },
+	{ TIME_SetMinute,  ".minute=( self: TimeType2 , value: int )" },
+	{ TIME_SetSecond,  ".second=( self: TimeType2 , value: float )" },
+	{ NULL, NULL }
+};
+
+DaoTypeBase conTimeTyper =
+{
+	"TimeType2", NULL, NULL, (DaoFuncItem*) conTimeMeths, {&conDateTyper, NULL}, {0},
+	(FuncPtrDel) NULL, NULL
+};
+
 
 int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
+	DaoNamespace *timens = DaoVmSpace_LinkModule( vms, ns, "time" );
+	DaoNamespace *timens2 = DaoVmSpace_GetNamespace( vms, "time" );
+	DaoNamespace *sqlns = DaoVmSpace_GetNamespace( vms, "SQL" );
+	DaoType *absdate = DaoNamespace_WrapInterface( sqlns, & absDateTyper );
+	DaoType *abstime = DaoNamespace_WrapInterface( sqlns, & absTimeTyper );
+	DaoType *condate = DaoNamespace_WrapCinType( sqlns, & conDateTyper, absdate, _DaoTime_Type() );
+	DaoType *contime = DaoNamespace_WrapCinType( sqlns, & conTimeTyper, abstime, _DaoTime_Type() );
 	DaoMap *engines;
 
-	DaoNamespace *sqlns = DaoNamespace_GetNamespace( ns, "SQL" );
+	DaoNamespace_AddConstValue( ns, "SQL", (DaoValue*) sqlns );
+	DaoNamespace_AddConstValue( sqlns, "time", (DaoValue*) timens2 );
 
 	DaoNamespace_DefineType( sqlns, "$SQLite",     "SQLite" );
 	DaoNamespace_DefineType( sqlns, "$PostgreSQL", "PostgreSQL" );
@@ -1107,11 +1311,8 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR128" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR256" );
 
-	dao_sql_type_date = DaoNamespace_DefineType( sqlns,
-			"tuple<year: int, month: int, day: int>", "DATE" );
-	dao_sql_type_timestamp = DaoNamespace_DefineType( sqlns,
-			"tuple<year: int, month: int, day: int, hour: int, minute: int, second: float>",
-			"TIMESTAMP" );
+	dao_sql_type_date = DaoNamespace_DefineType( sqlns, "DateType<time::DateTime>", "DATE" );
+	dao_sql_type_timestamp = DaoNamespace_DefineType( sqlns, "TimeType<time::DateTime>", "TIMESTAMP" );
 
 	DaoNamespace_WrapTypes( sqlns, typers );
 	DaoNamespace_WrapFunctions( sqlns, sqlMeths );

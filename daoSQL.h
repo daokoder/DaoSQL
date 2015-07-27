@@ -7,11 +7,15 @@
 #define __DAO_SQL__
 
 #include<stdint.h>
+#include"dao.h"
 #include"daoType.h"
 #include"daoClass.h"
 #include"daoObject.h"
 #include"daoValue.h"
 #include"daoNamespace.h"
+
+#define DAO_HAS_TIME
+#include"dao_api.h"
 
 #define MAX_PARAM_COUNT 64
 #define MIN_DATA_SIZE 64

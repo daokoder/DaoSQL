@@ -182,12 +182,14 @@ static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index
 	case DAO_STRING  :
 		k = sqlite3_bind_text( stmt, index, value->xString.value->chars, value->xString.value->size, SQLITE_TRANSIENT );
 		break;
-	case DAO_TUPLE :
-		if( type == dao_sql_type_date ){
-			int days = DaoSQL_EncodeDate( (DaoTuple*) value );
+	case DAO_CINVALUE :
+		if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
+			DaoTime *time = (DaoTime*) value->xCinValue.value;
+			int days = _DTime_ToDay( time->time );
 			k = sqlite3_bind_int( stmt, index, days );
-		}else if( type == dao_sql_type_timestamp ){
-			int64_t msecs = DaoSQL_EncodeTimestamp( (DaoTuple*) value );
+		}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
+			DaoTime *time = (DaoTime*) value->xCinValue.value;
+			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			k = sqlite3_bind_int64( stmt, index, msecs );
 		}
 		break;
@@ -361,15 +363,13 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 				count = sqlite3_column_bytes( handle->stmt, k );
 				if( txt ) DString_AppendBytes( value->xString.value, (const char*)txt, count );
 				break;
-			case DAO_TUPLE :
-				if( type == dao_sql_type_date ){
-					DaoTuple *tuple = (DaoTuple*) value;
-					DaoSQL_DecodeDate( tuple, sqlite3_column_int( handle->stmt, k ) );
-					break;
-				}else if( type == dao_sql_type_timestamp ){
-					DaoTuple *tuple = (DaoTuple*) value;
-					DaoSQL_DecodeTimestamp( tuple, sqlite3_column_int64( handle->stmt, k ) );
-					break;
+			case DAO_CINVALUE :
+				if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
+					DaoTime *time = (DaoTime*) value->xCinValue.value;
+					time->time = _DTime_FromDay( sqlite3_column_int( handle->stmt, k ) );
+				}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
+					DaoTime *time = (DaoTime*) value->xCinValue.value;
+					time->time = _DTime_FromMicroSeconds( sqlite3_column_int64( handle->stmt, k ) );
 				}
 				break;
 			default : break;

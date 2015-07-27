@@ -7,11 +7,11 @@ io.writeln( SQL::Engines )
 class DateTime
 {
 	var id       : SQL::INTEGER_PRIMARY_KEY_AUTO_INCREMENT;
-	var date     : SQL::DATE;
-	var tmstamp  : SQL::TIMESTAMP;
+	var date     : SQL::DATE = time::now();
+	var tmstamp  : SQL::TIMESTAMP = time::now();
 }
-#db = SQL::Database<SQL::SQLite>( "Test_DateTime.db" );
-db = SQL::Database<SQL::MySQL>( "test", "localhost", "root", "" );
+db = SQL::Database<SQL::SQLite>( "Test_DateTime.db" );
+#db = SQL::Database<SQL::MySQL>( "test", "localhost", "root", "" );
 
 # create a table for class DateTime
 std.exec {
@@ -19,8 +19,13 @@ std.exec {
 	db.CreateTable( DateTime );
 }
 
-dt = DateTime.{ 0, (2015,1,1), (2015,1,1,8,8,9.5) };
-dt2 = DateTime.{ 0, (2013,1,1), (2013,1,1,8,8,9.5) };
+date = time.parse( "2015-01-01" )
+tms = time.parse( "2015-01-01 08:08:09.5" )
+
+#dt = DateTime.{ 0, (2015,1,1), (2015,1,1,8,8,9.5) };
+#dt2 = DateTime.{ 0, (2013,1,1), (2013,1,1,8,8,9.5) };
+dt = DateTime.{ 0, date, tms };
+dt2 = DateTime.{ 0, date, tms };
 # insert a record into the table
 db.Insert( dt, dt2 );
 

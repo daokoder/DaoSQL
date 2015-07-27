@@ -422,24 +422,24 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		self->paramValues[index] = mbstring->chars;
 		self->paramLengths[index] = mbstring->size;
 		break;
-	case DAO_TUPLE :
-		if( type == dao_sql_type_date ){
-			DaoTuple *tuple = (DaoTuple*) value;
-			int days = DaoSQL_EncodeDate( tuple );
+	case DAO_CINVALUE :
+		if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
+			DaoTime *time = (DaoTime*) value->xCinValue.value;
+			int days = _DTime_ToDay( time->time );
 			self->paramFormats[index] = 1;
 			self->paramLengths[index] = sizeof(uint32_t);
 			self->paramValues[index] = (char*) & self->paramInts32[index];
 			self->paramInts32[index] = htonl( days );
-			break;
-		}else if( type == dao_sql_type_timestamp ){
-			DaoTuple *tuple = (DaoTuple*) value;
-			int64_t ts = DaoSQL_EncodeTimestamp( tuple );
+		}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
+			DaoTime *time = (DaoTime*) value->xCinValue.value;
+			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			self->paramFormats[index] = 1;
 			self->paramLengths[index] = sizeof(uint64_t);
 			self->paramValues[index] = (char*) & self->paramInts64[index];
-			self->paramInts64[index] = htobe64( ts );
-			break;
+			self->paramInts64[index] = htobe64( msecs );
 		}
+		break;
+	case DAO_TUPLE :
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
 		DaoTuple_ToJSON( (DaoTuple*) value, mbstring, proc );
@@ -515,13 +515,16 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 		case DAO_MAP :
 			self->paramTypes[k] = TEXTOID;
 			break;
-		case DAO_TUPLE :
+		case DAO_CINVALUE :
 			self->paramTypes[k] = TEXTOID;
 			if( type == dao_sql_type_date ){
 				self->paramTypes[k] = DATEOID;
 			}else if( type == dao_sql_type_timestamp ){
 				self->paramTypes[k] = TIMESTAMPOID;
 			}
+			break;
+		case DAO_TUPLE :
+			self->paramTypes[k] = TEXTOID;
 			break;
 		}
 	}
@@ -752,16 +755,16 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 					DString_SetBytes( it->value.pValue->xString.value, pdata, len );
 				}
 				break;
-			case DAO_TUPLE :
+			case DAO_CINVALUE :
 				if( oid == DATEOID ){
-					DaoTuple *tuple = (DaoTuple*) value;
-					DaoSQL_DecodeDate( tuple, ntohl(*((uint32_t *) pdata)) );
-					break;
+					DaoTime *time = (DaoTime*) value->xCinValue.value;
+					time->time = _DTime_FromDay( ntohl(*((uint32_t *) pdata)) );
 				}else if( oid == TIMESTAMPOID ){
-					DaoTuple *tuple = (DaoTuple*) value;
-					DaoSQL_DecodeTimestamp( tuple, be64toh( *(uint64_t*) pdata ) );
-					break;
+					DaoTime *time = (DaoTime*) value->xCinValue.value;
+					time->time = _DTime_FromMicroSeconds( be64toh( *(uint64_t*) pdata ) );
 				}
+				break;
+			case DAO_TUPLE :
 				k --;
 				k = DaoPostgreSQLHD_RetrieveJSON( proc, (DaoTuple*) value, handle->res, row, k );
 				break;
