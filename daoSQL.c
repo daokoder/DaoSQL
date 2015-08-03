@@ -1336,7 +1336,14 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 
 	engines = DaoMap_New(0);
 	DaoMap_SetType( engines, DaoNamespace_ParseType( sqlns, "map<string,any>" ) );
-	DaoNamespace_AddConstValue( sqlns, "Engines", (DaoValue*) engines );
+
+	/*
+	// Cannot add constant, otherwise the bytecode encoder will not work for:
+	//   load sqlite;
+	//   io.writeln( SQL::Engines )
+	// Because it will not be able to encode "Database<SQLite>"!
+	*/
+	DaoNamespace_AddValue( sqlns, "Engines", (DaoValue*) engines, NULL );
 
 	if( lang ){
 		char fname[100] = "help_module_official_sql_";
