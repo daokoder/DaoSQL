@@ -439,6 +439,16 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 			self->paramInts64[index] = htobe64( msecs );
 		}
 		break;
+	case DAO_CPOD :
+		if( value->xCpod.ctype == dao_type_datetime ){
+			DaoTime *time = (DaoTime*) value;
+			int64_t msecs = _DTime_ToMicroSeconds( time->time );
+			self->paramFormats[index] = 1;
+			self->paramLengths[index] = sizeof(uint64_t);
+			self->paramValues[index] = (char*) & self->paramInts64[index];
+			self->paramInts64[index] = htobe64( msecs );
+		}
+		break;
 	case DAO_TUPLE :
 		mbstring = self->base.pardata[index];
 		DString_Reset( mbstring, 0 );
@@ -446,7 +456,9 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		self->paramValues[index] = mbstring->chars;
 		self->paramLengths[index] = mbstring->size;
 		break;
-	default : break;
+	default :
+		DaoProcess_RaiseError( proc, "Value", "" );
+		break;
 	}
 }
 static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *handle, DaoObject *object )
@@ -520,6 +532,11 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			if( type == dao_sql_type_date ){
 				self->paramTypes[k] = DATEOID;
 			}else if( type == dao_sql_type_timestamp ){
+				self->paramTypes[k] = TIMESTAMPOID;
+			}
+			break;
+		case DAO_CPOD :
+			if( type == dao_type_datetime ){
 				self->paramTypes[k] = TIMESTAMPOID;
 			}
 			break;
@@ -760,8 +777,13 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 					DaoTime *time = (DaoTime*) value->xCinValue.value;
 					time->time = _DTime_FromDay( ntohl(*((uint32_t *) pdata)) );
 				}else if( oid == TIMESTAMPOID ){
-					DaoTime *time = (DaoTime*) value->xCinValue.value;
-					time->time = _DTime_FromMicroSeconds( be64toh( *(uint64_t*) pdata ) );
+					if( value->type == DAO_CINVALUE ){
+						DaoTime *time = (DaoTime*) value->xCinValue.value;
+						time->time = _DTime_FromMicroSeconds( be64toh( *(uint64_t*) pdata ) );
+					}else{
+						DaoTime *time = (DaoTime*) value;
+						time->time = _DTime_FromMicroSeconds( be64toh( *(uint64_t*) pdata ) );
+					}
 				}
 				break;
 			case DAO_TUPLE :

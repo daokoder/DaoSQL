@@ -88,5 +88,6 @@ extern DaoType *dao_sql_type_float;
 extern DaoType *dao_sql_type_double;
 extern DaoType *dao_sql_type_date;
 extern DaoType *dao_sql_type_timestamp;
+extern DaoType *dao_type_datetime;
 
 #endif

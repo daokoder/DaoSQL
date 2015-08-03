@@ -193,6 +193,13 @@ static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index
 			k = sqlite3_bind_int64( stmt, index, msecs );
 		}
 		break;
+	case DAO_CPOD :
+		if( value->xCpod.ctype == dao_type_datetime ){
+			DaoTime *time = (DaoTime*) value;
+			int64_t msecs = _DTime_ToMicroSeconds( time->time );
+			k = sqlite3_bind_int64( stmt, index, msecs );
+		}
+		break;
 	default : break;
 	}
 	if( k ) DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( db ) );
@@ -369,6 +376,12 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 					time->time = _DTime_FromDay( sqlite3_column_int( handle->stmt, k ) );
 				}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
 					DaoTime *time = (DaoTime*) value->xCinValue.value;
+					time->time = _DTime_FromMicroSeconds( sqlite3_column_int64( handle->stmt, k ) );
+				}
+				break;
+			case DAO_CPOD :
+				if( value->xCpod.ctype == dao_type_datetime ){
+					DaoTime *time = (DaoTime*) value;
 					time->time = _DTime_FromMicroSeconds( sqlite3_column_int64( handle->stmt, k ) );
 				}
 				break;

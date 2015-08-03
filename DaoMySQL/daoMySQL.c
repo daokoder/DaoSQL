@@ -173,6 +173,7 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 	DaoType *type = self->base.partypes[index];
 	MYSQL_BIND *bind = self->parbind + index;
 	char *pbuf = self->base.pardata[index]->chars;
+	DaoTime *time = NULL;
 
 	//printf( "%i: %s\n", index, type->name->chars );
 	switch( value->type ){
@@ -200,18 +201,37 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 		break;
 	case DAO_CINVALUE :
 		if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
-			DaoTime *time = (DaoTime*) value->xCinValue.value;
-			int days = _DTime_ToDay( time->time );
-			bind->buffer_type = MYSQL_TYPE_LONG;
-			*(long*) pbuf = days;
+			time = (DaoTime*) value->xCinValue.value;
+			bind->buffer_type = MYSQL_TYPE_DATE;
 		}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
-			DaoTime *time = (DaoTime*) value->xCinValue.value;
+			time = (DaoTime*) value->xCinValue.value;
+			bind->buffer_type = MYSQL_TYPE_TIMESTAMP;
+		}
+
+		if( time != NULL ){
+			MYSQL_TIME *ts = (MYSQL_TIME*) pbuf;
+			bind->buffer = pbuf;
+			bind->is_null = 0;
+			bind->length = 0;
+			ts->year = time->time.year;
+			ts->month = time->time.month;
+			ts->day = time->time.day;
+			ts->hour = time->time.hour;
+			ts->minute = time->time.minute;
+			ts->second = time->time.second;
+		}
+		break;
+	case DAO_CPOD :
+		if( value->xCpod.ctype == dao_type_datetime ){
+			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			bind->buffer_type = MYSQL_TYPE_LONGLONG;
 			*(long long*) pbuf = msecs;
 		}
 		break;
-	default : break;
+	default :
+		DaoProcess_RaiseError( proc, "Value", "" );
+		break;
 	}
 }
 static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoObject *object )
@@ -368,6 +388,7 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 		m = handle->base.countList->items.pInt[i-1];
 		for(j=1; j<m; j++){
 			MYSQL_FIELD *field = & handle->stmt->fields[k];
+			DaoTime *time = NULL;
 			type = DaoType_GetBaseType( klass->instvars->items.pVar[j]->dtype );
 			value = object->objValues[j];
 			if( value == NULL || value->type != type->tid ){
@@ -408,12 +429,26 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 				break;
 			case DAO_CINVALUE :
 				if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
-					DaoTime *time = (DaoTime*) value->xCinValue.value;
-					handle->resbind[0].buffer_type = MYSQL_TYPE_LONG;
-					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
-					time->time = _DTime_FromDay( *(long*)handle->base.resdata[0]->chars );
+					time = (DaoTime*) value->xCinValue.value;
+					handle->resbind[0].buffer_type = MYSQL_TYPE_DATE;
 				}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
-					DaoTime *time = (DaoTime*) value->xCinValue.value;
+					time = (DaoTime*) value->xCinValue.value;
+					handle->resbind[0].buffer_type = MYSQL_TYPE_TIMESTAMP;
+				}
+				if( time != NULL ){
+					MYSQL_TIME *ts = (MYSQL_TIME*) handle->base.resdata[0]->chars;
+					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+					time->time.year = ts->year;
+					time->time.month = ts->month;
+					time->time.day = ts->day;
+					time->time.hour = ts->hour;
+					time->time.minute = ts->minute;
+					time->time.second = ts->second;
+				}
+				break;
+			case DAO_CPOD :
+				if( value->xCpod.ctype == dao_type_datetime ){
+					DaoTime *time = (DaoTime*) value;
 					handle->resbind[0].buffer_type = MYSQL_TYPE_LONGLONG;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
 					time->time = _DTime_FromMicroSeconds( *(long long*)handle->base.resdata[0]->chars );

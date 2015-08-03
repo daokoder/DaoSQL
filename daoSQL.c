@@ -248,11 +248,19 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			}
 		}else if( type == dao_sql_type_date ){
 			if( self->type == DAO_POSTGRESQL ){
-				DString_AppendChars( sql, tpname );
+				DString_AppendChars( sql, "DATE" );
 			}else{
 				DString_AppendChars( sql, "INTEGER" );
 			}
 		}else if( type == dao_sql_type_timestamp ){
+			if( self->type == DAO_POSTGRESQL ){
+				DString_AppendChars( sql, "TIMESTAMP" );
+			}else if( self->type == DAO_MYSQL ){
+				DString_AppendChars( sql, "TIMESTAMP" );
+			}else{
+				DString_AppendChars( sql, "BIGINT" );
+			}
+		}else if( type == dao_type_datetime ){
 			if( self->type == DAO_POSTGRESQL ){
 				DString_AppendChars( sql, tpname );
 			}else{
@@ -1030,6 +1038,7 @@ DaoType *dao_sql_type_float = NULL;
 DaoType *dao_sql_type_double = NULL;
 DaoType *dao_sql_type_date = NULL;
 DaoType *dao_sql_type_timestamp = NULL;
+DaoType *dao_type_datetime = NULL;
 
 
 static void SQL_EncodeTS( DaoProcess *proc, DaoValue *p[], int N )
@@ -1042,11 +1051,18 @@ static void SQL_DecodeTS( DaoProcess *proc, DaoValue *p[], int N )
 	DaoTuple *tuple = DaoProcess_PutTuple( proc, 0 );
 	DaoSQL_DecodeTimestamp( tuple, p[0]->xInteger.value );
 }
+static void SQL_TableName( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoClass *table = (DaoClass*) p[0];
+	DString *name = DaoSQLDatabase_TableName( table );
+	DaoProcess_PutString( proc, name );
+}
 
 static DaoFuncItem sqlMeths[]=
 {
 	{ SQL_EncodeTS,  "Encode( ts: TIMESTAMP ) => int" },
 	{ SQL_DecodeTS,  "Decode( value: int ) => TIMESTAMP" },
+	{ SQL_TableName,  "GetTableName( invar table: class ) => string" },
 	{ NULL, NULL }
 };
 
@@ -1313,6 +1329,7 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 
 	dao_sql_type_date = DaoNamespace_DefineType( sqlns, "DateType<time::DateTime>", "DATE" );
 	dao_sql_type_timestamp = DaoNamespace_DefineType( sqlns, "TimeType<time::DateTime>", "TIMESTAMP" );
+	dao_type_datetime = _DaoTime_Type();
 
 	DaoNamespace_WrapTypes( sqlns, typers );
 	DaoNamespace_WrapFunctions( sqlns, sqlMeths );
