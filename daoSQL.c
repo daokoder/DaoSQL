@@ -244,7 +244,7 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			}else if( self->type == DAO_POSTGRESQL ){
 				DString_AppendChars( sql, "SERIAL PRIMARY KEY" );
 			}else{
-				DString_AppendChars( sql, "INTEGER PRIMARY KEY AUTO_INCREMENT" );
+				DString_AppendChars( sql, "BIGINT PRIMARY KEY AUTO_INCREMENT" );
 			}
 		}else if( type == dao_sql_type_date ){
 			if( self->type == DAO_POSTGRESQL ){
@@ -254,9 +254,9 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			}
 		}else if( type == dao_sql_type_timestamp ){
 			if( self->type == DAO_POSTGRESQL ){
-				DString_AppendChars( sql, "TIMESTAMP" );
+				DString_AppendChars( sql, "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" );
 			}else if( self->type == DAO_MYSQL ){
-				DString_AppendChars( sql, "TIMESTAMP" );
+				DString_AppendChars( sql, "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" );
 			}else{
 				DString_AppendChars( sql, "BIGINT" );
 			}
@@ -524,10 +524,42 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 				if( k++ ) DString_AppendChars( self->sqlSource, "," );
 				if( DString_FindChars( type->name, "COUNT_DISTINCT_", 0 ) == 0 ){
 					DString_AppendChars( sql, "COUNT(DISTINCT " );
+					if( ntable >1 ){
+						DString_Append( self->sqlSource, tabname );
+						DString_AppendChars( self->sqlSource, "." );
+					}
 					DString_AppendChars( sql, type->name->chars + strlen("COUNT_DISTINCT_") );
 					DString_AppendChars( sql, ")" );
 				}else if( DString_FindChars( type->name, "COUNT", 0 ) == 0 ){
 					DString_AppendChars( sql, "COUNT(1)" );
+				}
+			}else if( type->tid == DAO_INTEGER && DString_FindChars( type->name, "SUM_INT", 0 ) == 0 ){
+				DString *sql = self->sqlSource;
+				if( k++ ) DString_AppendChars( self->sqlSource, "," );
+				if( DString_FindChars( type->name, "SUM_INT_", 0 ) == 0 ){
+					DString_AppendChars( sql, "SUM(" );
+					if( ntable >1 ){
+						DString_Append( self->sqlSource, tabname );
+						DString_AppendChars( self->sqlSource, "." );
+					}
+					DString_AppendChars( sql, type->name->chars + strlen("SUM_INT_") );
+					DString_AppendChars( sql, ")" );
+				}else{
+					DString_AppendChars( sql, "SUM(1)" );
+				}
+			}else if( type->tid == DAO_FLOAT && DString_FindChars( type->name, "SUM_FLOAT", 0 ) == 0 ){
+				DString *sql = self->sqlSource;
+				if( k++ ) DString_AppendChars( self->sqlSource, "," );
+				if( DString_FindChars( type->name, "SUM_FLOAT_", 0 ) == 0 ){
+					DString_AppendChars( sql, "SUM(" );
+					if( ntable >1 ){
+						DString_Append( self->sqlSource, tabname );
+						DString_AppendChars( self->sqlSource, "." );
+					}
+					DString_AppendChars( sql, type->name->chars + strlen("SUM_FLOAT_") );
+					DString_AppendChars( sql, ")" );
+				}else{
+					DString_AppendChars( sql, "SUM(1.0)" );
 				}
 			}else{
 HandleNormalField:
@@ -1284,6 +1316,8 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace_DefineType( sqlns, "$MySQL",      "MySQL" );
 
 	DaoNamespace_DefineType( sqlns, "int", "COUNT" );
+	DaoNamespace_DefineType( sqlns, "int", "SUM_INT" );
+	DaoNamespace_DefineType( sqlns, "float", "SUM_FLOAT" );
 
 	DaoNamespace_DefineType( sqlns, "int", "INTEGER" );
 	DaoNamespace_DefineType( sqlns, "int", "SMALLINT" );
