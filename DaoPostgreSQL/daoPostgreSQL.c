@@ -886,7 +886,7 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 	DString_AppendChars( handle->sqlSource, op );
 
 	if( N >2 ){
-		DString *mbstring = field->xString.value;
+		DString *mbstring = fname;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -894,8 +894,8 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->xString.value );
-			DString_AppendSQL( handle->sqlSource, field->xString.value, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, fname );
+			DString_AppendSQL( handle->sqlSource, fname, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
@@ -979,7 +979,7 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 	DString_AppendChars( handle->sqlSource, "+" );
 
 	if( N >2 ){
-		DString *mbstring = field->value;
+		DString *mbstring = fname;
 		DString_Reset( mbstring, 0 );
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
@@ -987,8 +987,8 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->value );
-			DString_AppendSQL( handle->sqlSource, field->value, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, fname );
+			DString_AppendSQL( handle->sqlSource, fname, value->type == DAO_STRING, "\'" );
 		}
 	}else{
 		char buf[20];
@@ -1035,17 +1035,17 @@ static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, ch
 	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
 	DString_AppendChars( handle->sqlSource, op );
 	if( N >2 ){
-		DString *mbstring = field->value;
-		DString_Reset( mbstring, 0 );
+		DString *mbstring = DString_New();
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
 			DString_AppendChar( handle->sqlSource, '\'' );
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->value );
-			DString_AppendSQL( handle->sqlSource, field->value, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, mbstring );
+			DString_AppendSQL( handle->sqlSource, mbstring, value->type == DAO_STRING, "\'" );
 		}
+		DString_Delete( mbstring );
 	}else{
 		char buf[20];
 		handle->partypes[handle->paramCount++] = cast;
@@ -1134,17 +1134,17 @@ static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, c
 	if( cast ) DString_AppendCastAs( handle->sqlSource, cast );
 	DString_AppendChars( handle->sqlSource, op );
 	if( N >2 ){
-		DString *mbstring = field->value;
-		DString_Reset( mbstring, 0 );
+		DString *mbstring = DString_New();
 		if( value->type == DAO_MAP ){
 			DString_AppendKeyValues( mbstring, (DaoMap*) value );
 			DString_AppendChar( handle->sqlSource, '\'' );
 			DString_Append( handle->sqlSource, mbstring );
 			DString_AppendChar( handle->sqlSource, '\'' );
 		}else{
-			DaoValue_GetString( value, field->value );
-			DString_AppendSQL( handle->sqlSource, field->value, value->type == DAO_STRING, "\'" );
+			DaoValue_GetString( value, mbstring );
+			DString_AppendSQL( handle->sqlSource, mbstring, value->type == DAO_STRING, "\'" );
 		}
+		DString_Delete( mbstring );
 	}else{
 		char buf[20];
 		handle->partypes[handle->paramCount++] = cast;

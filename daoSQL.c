@@ -655,14 +655,6 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 	fname = DString_New();
 	klass = handler->classList->items.pClass[0];
 	if( handler->setCount ) DString_AppendChars( handler->sqlSource, ", " );
-	DString_Assign( fname, field->xString.value );
-
-	data = DaoClass_GetData( klass, fname, NULL );
-	if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
-		DaoProcess_RaiseError( proc, "Param", "" );
-		return;
-	}
-	type = data->xVar.dtype;
 
 	if( p[1]->type == DAO_CLASS ){
 		field = p[2];
@@ -672,6 +664,15 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 		DString_Append( fname, tabname );
 		DString_AppendChars( fname, "." );
 	}
+
+	DString_Assign( fname, field->xString.value );
+	data = DaoClass_GetData( klass, fname, NULL );
+	if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
+		DaoProcess_RaiseError( proc, "Param", "" );
+		return;
+	}
+	type = data->xVar.dtype;
+
 	DString_Append( handler->sqlSource, fname );
 	DString_AppendChars( handler->sqlSource, "=" );
 	if( add ){
@@ -683,8 +684,8 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 		DString_AppendChars( handler->sqlSource, "+ " );
 	}
 	if( N >2 ){
-		DaoValue_GetString( value, field->xString.value );
-		DString_AppendSQL( handler->sqlSource, field->xString.value, value->type == DAO_STRING, "\'" );
+		DaoValue_GetString( value, fname );
+		DString_AppendSQL( handler->sqlSource, fname, value->type == DAO_STRING, "\'" );
 	}else{
 		handler->partypes[handler->paramCount++] = type;
 		if( handler->database->type == DAO_POSTGRESQL ){
@@ -739,8 +740,10 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 	DString_AppendChars( handler->sqlSource, op );
 
 	if( value->type ){
-		DaoValue_GetString( value, field->xString.value );
-		DString_AppendSQL( handler->sqlSource, field->xString.value, value->type == DAO_STRING, "\'" );
+		DString *buffer = DString_New();
+		DaoValue_GetString( value, buffer );
+		DString_AppendSQL( handler->sqlSource, buffer, value->type == DAO_STRING, "\'" );
+		DString_Delete( buffer );
 	}else{
 		DaoValue *data = DaoClass_GetData( klass, field->xString.value, NULL );
 		if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
