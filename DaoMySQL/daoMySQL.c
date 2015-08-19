@@ -276,6 +276,8 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 		return;
 	}
 	for(i=1; i<N; ++i) DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
+	mysql_stmt_free_result( handle->stmt );
+	mysql_stmt_close( handle->stmt );
 }
 static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -497,7 +499,11 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 		if( handle->base.stopQuery ) break;
 	}
 	DaoProcess_PopFrame( proc );
-	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
+	if( handle->base.executed ){
+		mysql_stmt_free_result( handle->stmt );
+		mysql_stmt_close( handle->stmt );
+		handle->stmt = mysql_stmt_init( handle->model->mysql );
+	}
 }
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -505,7 +511,11 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
 	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
 	*res = DaoMySQLHD_Retrieve( proc, p, N );
-	if( handle->base.executed ) mysql_stmt_free_result( handle->stmt );
+	if( handle->base.executed ){
+		mysql_stmt_free_result( handle->stmt );
+		mysql_stmt_close( handle->stmt );
+		handle->stmt = mysql_stmt_init( handle->model->mysql );
+	}
 }
 
 int DaoMysql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )

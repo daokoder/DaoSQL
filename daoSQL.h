@@ -22,7 +22,7 @@
 #define MAX_DATA_SIZE 1024
 
 typedef struct DaoSQLDatabase DaoSQLDatabase;
-typedef struct DaoSQLHandle  DaoSQLHandle;
+typedef struct DaoSQLHandle   DaoSQLHandle;
 
 enum{ DAO_SQLITE, DAO_MYSQL, DAO_POSTGRESQL };
 

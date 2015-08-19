@@ -801,6 +801,7 @@ static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	values = p[vid]->xList.value;
 	DString_AppendChars( handler->sqlSource, " " );
+	if( handler->boolCount ) DString_AppendChars( handler->sqlSource, " AND " );
 	if( table ){
 		DString_Append( handler->sqlSource, table );
 		DString_AppendChars( handler->sqlSource, "." );
@@ -1348,14 +1349,20 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace_DefineType( sqlns, "string", "CHAR2" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR4" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR8" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR12" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR16" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR24" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR32" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR64" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR128" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR256" );
 
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR2" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR4" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR8" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR12" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR16" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR24" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR32" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR64" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR128" );
