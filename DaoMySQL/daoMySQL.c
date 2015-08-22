@@ -1,8 +1,8 @@
-
-/* DaoMySQL:
- * Database handling with mapping class instances to database table records.
- * Copyright (C) 2008-2011, Limin Fu (phoolimin@gmail.com).
- */
+/*
+// DaoSQL
+// Database handling with mapping class instances to database table records.
+// Copyright (C) 2008-2015, Limin Fu (http://fulimin.org).
+*/
 #include"stdlib.h"
 #include"string.h"
 #include"daoMySQL.h"
@@ -501,8 +501,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PopFrame( proc );
 	if( handle->base.executed ){
 		mysql_stmt_free_result( handle->stmt );
-		mysql_stmt_close( handle->stmt );
-		handle->stmt = mysql_stmt_init( handle->model->mysql );
+		handle->base.executed = 0;
 	}
 }
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
@@ -513,8 +512,7 @@ static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 	*res = DaoMySQLHD_Retrieve( proc, p, N );
 	if( handle->base.executed ){
 		mysql_stmt_free_result( handle->stmt );
-		mysql_stmt_close( handle->stmt );
-		handle->stmt = mysql_stmt_init( handle->model->mysql );
+		handle->base.executed = 0;
 	}
 }
 

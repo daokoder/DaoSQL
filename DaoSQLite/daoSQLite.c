@@ -1,8 +1,8 @@
-
-/* DaoSQLite:
- * Database handling with mapping class instances to database table records.
- * Copyright (C) 2008-2012, Limin Fu (phoolimin@gmail.com).
- */
+/*
+// DaoSQL
+// Database handling with mapping class instances to database table records.
+// Copyright (C) 2008-2015, Limin Fu (http://fulimin.org).
+*/
 #include"stdlib.h"
 #include"string.h"
 #include"daoSQLite.h"

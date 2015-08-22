@@ -1,7 +1,7 @@
 /*
-// DaoPostgreSQL:
+// DaoSQL
 // Database handling with mapping class instances to database table records.
-// Copyright (C) 2013, Limin Fu (daokoder@gmail.com).
+// Copyright (C) 2013-2015, Limin Fu (http://fulimin.org).
 */
 
 #include"stdlib.h"
@@ -43,6 +43,19 @@
 #else
   #include <endian.h>
 #endif
+
+#define VOIDOID         2278
+#define INT2OID         21
+#define INT4OID         23
+#define INT8OID         20
+#define FLOAT4OID       700
+#define FLOAT8OID       701
+#define BYTEAOID        17
+#define BPCHAROID       1042
+#define VARCHAROID      1043
+#define TEXTOID         25
+#define DATEOID         1082
+#define TIMESTAMPOID    1114
 
 DaoPostgreSQLDB* DaoPostgreSQLDB_New()
 {
@@ -467,36 +480,48 @@ static void DaoPostgreSQLDB_InsertObject( DaoProcess *proc, DaoPostgreSQLHD *han
 	DaoClass *klass = object->defClass;
 	DaoVariable **vars = klass->instvars->items.pVar;
 	DString *mbstring;
+	int key = -1;
 	int i, k = -1;
 	for(i=1,k=0; i<klass->objDataName->size; i++){
 		DaoType *type = DaoType_GetBaseType( vars[i]->dtype );
 		char *tpname = type->name->chars;
 		DaoValue *value = object->objValues[i];
-		if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ) continue;
+		if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ){
+			key = i;
+			continue;
+		}
 		DaoPostgreSQLHD_BindValue( handle, value, k++, proc );
 	}
 	if( handle->res ) PQclear( handle->res );
 	handle->res = PQexecPrepared( model->conn, handle->name->chars, k, handle->paramValues,
 			handle->paramLengths, handle->paramFormats, 1 );
 	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
-		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
+		//DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 	}
 
+	if( key >= 0 ){
+		DaoValue *value = object->objValues[key];
+		Oid oid = PQftype( handle->res, 0 );
+		char *pdata = PQgetvalue( handle->res, 0, 0 );
+		if( pdata != NULL ){
+			switch( PQftype( handle->res, 0 ) ){
+			case INT2OID :
+				value->xInteger.value = htons( *(uint16_t*) pdata );
+				break;
+			case INT4OID :
+				value->xInteger.value = ntohl(*((uint32_t *) pdata));
+				break;
+			case INT8OID :
+				value->xInteger.value = be64toh( *(uint64_t*) pdata );
+				break;
+			default:
+				break;
+			}
+		}
+	}
 	//printf( "k = %i %i\n", k, mysql_insert_id( handle->model->conn ) );
 	//if( k >=0 ) object->objValues[k]->xInteger.value = mysql_insert_id( handle->model->conn );
 }
-#define VOIDOID         2278
-#define INT2OID         21
-#define INT4OID         23
-#define INT8OID         20
-#define FLOAT4OID       700
-#define FLOAT8OID       701
-#define BYTEAOID        17
-#define BPCHAROID       1042
-#define VARCHAROID      1043
-#define TEXTOID         25
-#define DATEOID         1082
-#define TIMESTAMPOID    1114
 static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 {
 	int k;

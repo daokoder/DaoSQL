@@ -1,8 +1,8 @@
-
-/* DaoSQL:
- * Database handling with mapping class instances to database table records.
- * Copyright (C) 2008-2012, Limin Fu (phoolimin@gmail.com).
- */
+/*
+// DaoSQL
+// Database handling with mapping class instances to database table records.
+// Copyright (C) 2008-2015, Limin Fu (http://fulimin.org).
+*/
 #include"stdlib.h"
 #include"string.h"
 #include"daoSQL.h"
@@ -311,6 +311,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DaoClass  *klass;
 	DString *str = self->sqlSource;
 	DString *tabname = NULL;
+	DString *keyname = NULL;
 	char buf[20];
 	int i, k;
 
@@ -332,7 +333,10 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		if( self->database->type == DAO_POSTGRESQL ){
 			DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[i]->dtype );
 			char *tpname = type->name->chars;
-			if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
+			if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ){
+				keyname = klass->objDataName->items.pString[i];
+				continue;
+			}
 		}
 		if( k++ ) DString_AppendChars( self->sqlSource, "," );
 		DString_Append( self->sqlSource, klass->objDataName->items.pString[i] );
@@ -359,7 +363,13 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 			DString_AppendChars( self->sqlSource, "?" );
 		}
 	}
-	DString_AppendChars( self->sqlSource, ");" );
+	if( self->database->type == DAO_POSTGRESQL ){
+		DString_AppendChars( self->sqlSource, ") RETURNING " );
+		DString_Append( self->sqlSource, keyname );
+		DString_AppendChars( self->sqlSource, ";" );
+	}else{
+		DString_AppendChars( self->sqlSource, ");" );
+	}
 	//printf( "%s\n", self->sqlSource->chars );
 	return 1;
 }

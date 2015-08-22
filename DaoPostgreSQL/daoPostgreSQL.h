@@ -1,7 +1,7 @@
 /*
-// DaoPostgreSQL:
+// DaoSQL
 // Database handling with mapping class instances to database table records.
-// Copyright (C) 2013, Limin Fu (daokoder@gmail.com).
+// Copyright (C) 2013-2015, Limin Fu (http://fulimin.org).
 */
 
 #include<stdint.h>

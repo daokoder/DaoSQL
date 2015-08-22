@@ -1,8 +1,8 @@
-
-/* DaoMySQL:
- * Database handling with mapping class instances to database table records.
- * Copyright (C) 2008-2011, Limin Fu (phoolimin@gmail.com).
- */
+/*
+// DaoSQL
+// Database handling with mapping class instances to database table records.
+// Copyright (C) 2008-2015, Limin Fu (http://fulimin.org).
+*/
 #include"daoType.h"
 #include"daoClass.h"
 #include"daoObject.h"
