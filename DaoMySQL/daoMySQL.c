@@ -525,5 +525,6 @@ int DaoMysql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	dao_type_mysql_handle = DaoNamespace_WrapType( sqlns, & DaoMySQLHD_Typer, DAO_CDATA, 0 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
 	DaoMap_InsertChars( engines, "MySQL", (DaoValue*) dao_type_mysql_database );
+	mysql_library_init( 0, NULL, NULL );
 	return 0;
 }
