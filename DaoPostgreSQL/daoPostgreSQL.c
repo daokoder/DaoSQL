@@ -587,6 +587,7 @@ static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 		return;
 	}
+	if( N == 2 && p[1]->type == DAO_CLASS ) return;
 	for(i=1; i<N; ++i) DaoPostgreSQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
 }
 static void DaoPostgreSQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )

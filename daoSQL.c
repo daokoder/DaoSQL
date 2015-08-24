@@ -307,21 +307,22 @@ void DaoSQLDatabase_DeleteTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 }
 int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoObject *object;
-	DaoClass  *klass;
-	DString *str = self->sqlSource;
+	DaoClass *klass;
 	DString *tabname = NULL;
 	DString *keyname = NULL;
 	char buf[20];
 	int i, k;
 
 	for(i=1; i<N; ++i){
+		if( p[1]->type == DAO_CLASS && N == 2 ){
+			klass = (DaoClass*) p[i];
+			break;
+		}
 		if( p[i]->type != DAO_OBJECT || p[i]->xObject.defClass != p[1]->xObject.defClass ){
-			DaoProcess_RaiseError( proc, "Param", "Not an object or objects of the same type" );
+			DaoProcess_RaiseError( proc, "Param", "Need object(s) of the same class" );
 			return 0;
 		}
-		object = (DaoObject*) p[1];
-		klass = object->defClass;
+		klass = p[1]->xObject.defClass;
 	}
 
 	tabname = DaoSQLDatabase_TableName( klass );

@@ -247,6 +247,7 @@ static void DaoSQLiteDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
 		return;
 	}
+	if( N == 2 && p[1]->type == DAO_CLASS ) return;
 	for(i=1; i<N; ++i) DaoSQLiteDB_InsertObject( proc, handle, (DaoObject*) p[i] );
 }
 static void DaoSQLiteDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )

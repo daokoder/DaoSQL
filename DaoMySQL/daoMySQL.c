@@ -75,8 +75,7 @@ DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 void DaoMySQLHD_Delete( DaoMySQLHD *self )
 {
 	int i;
-	/* it appears to close all other stmt associated with the connection too! */
-	/* mysql_stmt_close( self->stmt ); */
+	mysql_stmt_close( self->stmt );
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		DString_Delete( self->base.pardata[i] );
 		DString_Delete( self->base.resdata[i] );
@@ -275,9 +274,9 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 		DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
 		return;
 	}
+	if( N == 2 && p[1]->type == DAO_CLASS ) return;
 	for(i=1; i<N; ++i) DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
 	mysql_stmt_free_result( handle->stmt );
-	mysql_stmt_close( handle->stmt );
 }
 static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
