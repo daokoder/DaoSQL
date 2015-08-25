@@ -75,7 +75,13 @@ DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 void DaoMySQLHD_Delete( DaoMySQLHD *self )
 {
 	int i;
-	mysql_stmt_close( self->stmt );
+	/*
+	// MySQL caches prepared statements in the server side, so different statements
+	// in the client side with the same statement source corresponds to the same
+	// cached statement in the server side. Closing one of these client-side statments
+	// will cancel any query that is using the cached server-side statement!
+	*/
+	/* mysql_stmt_close( self->stmt ); */
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		DString_Delete( self->base.pardata[i] );
 		DString_Delete( self->base.resdata[i] );
