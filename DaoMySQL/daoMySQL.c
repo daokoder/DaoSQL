@@ -13,14 +13,36 @@ DaoMySQLDB* DaoMySQLDB_New()
 	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, DAO_MYSQL );
 	self->mysql = mysql_init( NULL );
 	self->stmt = mysql_stmt_init( self->mysql );
+	self->stmts = DHash_New( DAO_DATA_STRING, 0 );
+	self->error = DString_New();
 	return self;
 }
 void DaoMySQLDB_Delete( DaoMySQLDB *self )
 {
+	DNode *it;
+	for(it=DMap_First(self->stmts); it; it=DMap_Next(self->stmts,it)){
+		mysql_stmt_close( (MYSQL_STMT*) it->value.pVoid );
+	}
+	DString_Delete( self->error );
 	DaoSQLDatabase_Clear( (DaoSQLDatabase*) self );
 	mysql_stmt_close( self->stmt );
 	mysql_close( self->mysql );
 	free( self );
+}
+MYSQL_STMT* DaoMySQLDB_GetSTMT( DaoMySQLDB *self, DString *source )
+{
+	DNode *it = DMap_Find( self->stmts, source );
+	if( it == NULL ){
+		MYSQL_STMT *stmt = mysql_stmt_init( self->mysql );
+		if( mysql_stmt_prepare( stmt, source->chars, source->size ) ){
+			DString_SetChars( self->error, mysql_stmt_error( stmt ) );
+			mysql_stmt_close( stmt );
+			return NULL;
+		}
+		it = DMap_Insert( self->stmts, source, stmt );
+	}
+	mysql_stmt_free_result( (MYSQL_STMT*) it->value.pVoid );
+	return (MYSQL_STMT*) it->value.pVoid;
 }
 
 static void DaoMySQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N );
@@ -61,7 +83,7 @@ DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 	DaoSQLHandle_Init( (DaoSQLHandle*) self, (DaoSQLDatabase*) model );
 	self->model = model;
 	self->res = NULL;
-	self->stmt = mysql_stmt_init( model->mysql );
+	self->stmt = NULL;
 	memset( self->parbind, 0, MAX_PARAM_COUNT*sizeof(MYSQL_BIND) );
 	memset( self->resbind, 0, MAX_PARAM_COUNT*sizeof(MYSQL_BIND) );
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
@@ -75,13 +97,6 @@ DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 void DaoMySQLHD_Delete( DaoMySQLHD *self )
 {
 	int i;
-	/*
-	// MySQL caches prepared statements in the server side, so different statements
-	// in the client side with the same statement source corresponds to the same
-	// cached statement in the server side. Closing one of these client-side statments
-	// will cancel any query that is using the cached server-side statement!
-	*/
-	/* mysql_stmt_close( self->stmt ); */
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		DString_Delete( self->base.pardata[i] );
 		DString_Delete( self->base.resdata[i] );
@@ -276,13 +291,14 @@ static void DaoMySQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_mysql_handle, handle ) );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//printf( "%s\n", handle->base.sqlSource->chars );
-	if( mysql_stmt_prepare( handle->stmt, str->chars, str->size ) ){
-		DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
+
+	handle->stmt = DaoMySQLDB_GetSTMT( model, str );
+	if( handle->stmt == NULL ){
+		DaoProcess_RaiseError( proc, "Param", model->error->chars );
 		return;
 	}
 	if( N == 2 && p[1]->type == DAO_CLASS ) return;
 	for(i=1; i<N; ++i) DaoMySQLDB_InsertObject( proc, handle, (DaoObject*) p[i] );
-	mysql_stmt_free_result( handle->stmt );
 }
 static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -330,8 +346,12 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
-		if( mysql_stmt_prepare( handle->stmt, sql->chars, sql->size ) )
-			DaoProcess_RaiseError( proc, "Param", mysql_stmt_error( handle->stmt ) );
+
+		handle->stmt = DaoMySQLDB_GetSTMT( handle->model, sql );
+		if( handle->stmt == NULL ){
+			DaoProcess_RaiseError( proc, "Param", handle->model->error->chars );
+			return;
+		}
 		handle->base.prepared = 1;
 	}
 	handle->base.executed = 0;
@@ -347,8 +367,12 @@ static int DaoMySQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N )
 	int i;
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
-		mysql_stmt_free_result( handle->stmt );
-		if( mysql_stmt_prepare( handle->stmt, sql->chars, sql->size ) ) goto RaiseException;
+
+		handle->stmt = DaoMySQLDB_GetSTMT( handle->model, sql );
+		if( handle->stmt == NULL ){
+			DaoProcess_RaiseError( proc, "Param", handle->model->error->chars );
+			return 0;
+		}
 		handle->base.prepared = 1;
 		handle->base.executed = 0;
 	}

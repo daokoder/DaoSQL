@@ -119,8 +119,6 @@ void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db )
 void DaoSQLHandle_Clear( DaoSQLHandle *self )
 {
 	int i;
-	/* it appears to close all other stmt associated with the connection too! */
-	/* mysql_stmt_close( self->stmt ); */
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		DString_Delete( self->pardata[i] );
 		DString_Delete( self->resdata[i] );
@@ -313,6 +311,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	char buf[20];
 	int i, k;
 
+	self->prepared = 0;
 	for(i=1; i<N; ++i){
 		if( p[1]->type == DAO_CLASS && N == 2 ){
 			klass = (DaoClass*) p[i];
@@ -380,6 +379,8 @@ int DaoSQLHandle_PrepareDelete( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString *str = self->sqlSource;
 	DString *tabname = NULL;
 	int i;
+
+	self->prepared = 0;
 	if( p[1]->type != DAO_CLASS ){
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return 0;
@@ -471,6 +472,8 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DaoObject *object;
 	DString *tabname = NULL;
 	int i, j, k, m, ntable = 0;
+
+	self->prepared = 0;
 	self->paramCount = 0;
 	DString_AppendChars( self->sqlSource, "SELECT " );
 	for(i=1; i<N; i++) ntable += p[i]->type == DAO_CLASS || p[i]->type == DAO_OBJECT;
@@ -603,6 +606,8 @@ int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DaoObject *object;
 	DString *tabname = NULL;
 	int i, j;
+
+	self->prepared = 0;
 	self->paramCount = 0;
 	DString_AppendChars( self->sqlSource, "UPDATE " );
 	for(i=1; i<N; i++){

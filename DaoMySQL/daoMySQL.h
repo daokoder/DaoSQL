@@ -19,8 +19,10 @@ struct DaoMySQLDB
 {
 	DaoSQLDatabase base;
 
-	MYSQL  *mysql;
+	MYSQL       *mysql;
 	MYSQL_STMT  *stmt;
+	DMap        *stmts;
+	DString     *error;
 };
 
 DaoMySQLDB* DaoMySQLDB_New();
@@ -28,7 +30,7 @@ DaoMySQLDB* DaoMySQLDB_New();
 struct DaoMySQLHD
 {
 	DaoSQLHandle  base;
-	DaoMySQLDB  *model;
+	DaoMySQLDB   *model;
 
 	MYSQL_STMT  *stmt;
 	MYSQL_RES   *res;
