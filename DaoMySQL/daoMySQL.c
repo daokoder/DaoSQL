@@ -26,6 +26,7 @@ void DaoMySQLDB_Delete( DaoMySQLDB *self )
 	for(it=DMap_First(self->stmts); it; it=DMap_Next(self->stmts,it)){
 		mysql_stmt_close( (MYSQL_STMT*) it->value.pVoid );
 	}
+	DMap_Delete( self->stmts );
 	DString_Delete( self->error );
 	DaoSQLDatabase_Clear( (DaoSQLDatabase*) self );
 	mysql_stmt_close( self->stmt );

@@ -17,6 +17,7 @@
 #include"daoNamespace.h"
 
 #define DAO_HAS_TIME
+#define DAO_HAS_CRYPTO
 #include"dao_api.h"
 
 #define MAX_PARAM_COUNT 64

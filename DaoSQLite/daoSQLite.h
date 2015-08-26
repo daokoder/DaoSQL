@@ -22,6 +22,7 @@ struct DaoSQLiteDB
 
 	sqlite3      *db;
 	sqlite3_stmt *stmt;
+	DMap         *stmts;
 };
 
 DaoSQLiteDB* DaoSQLiteDB_New();

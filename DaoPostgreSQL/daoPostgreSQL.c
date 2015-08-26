@@ -65,12 +65,14 @@ DaoPostgreSQLDB* DaoPostgreSQLDB_New()
 {
 	DaoPostgreSQLDB *self = malloc( sizeof(DaoPostgreSQLDB) );
 	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, dao_type_postgresql_database, DAO_POSTGRESQL );
+	self->stmts = DHash_New( DAO_DATA_STRING, 0 );
 	self->conn = NULL;
 	return self;
 }
 void DaoPostgreSQLDB_Delete( DaoPostgreSQLDB *self )
 {
 	DaoSQLDatabase_Clear( (DaoSQLDatabase*) self );
+	DMap_Delete( self->stmts );
 	if( self->conn ) PQfinish( self->conn );
 	free( self );
 }
@@ -116,8 +118,6 @@ DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 	self->model = model;
 	self->res = NULL;
 	self->name = DString_New();
-	sprintf( buf, "PQ_STMT_%p", (void*)clock() );
-	DString_SetChars( self->name, buf );
 	return self;
 }
 void DaoPostgreSQLHD_Delete( DaoPostgreSQLHD *self )
@@ -565,19 +565,36 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 		}
 	}
 }
+static int DaoPostgreSQLHD_Prepare( DaoPostgreSQLHD *self )
+{
+	DaoPostgreSQLDB *model = self->model;
+	DNode *it;
+
+	_DString_MD5( self->base.sqlSource, self->name );
+	it = DMap_Find( model->stmts, self->name );
+	if( it ) return 1;
+
+	self->res = PQprepare(
+			model->conn, self->name->chars, self->base.sqlSource->chars,
+			self->base.paramCount, self->paramTypes
+			);
+	if( PQresultStatus( self->res ) == PGRES_COMMAND_OK ){
+		DMap_Insert( model->stmts, self->name, 0 );
+		return 1;
+	}
+	return 0;
+}
 static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DaoPostgreSQLHD *handle = DaoPostgreSQLHD_New( model );
-	DString *str = handle->base.sqlSource;
 	int i;
 
 	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//fprintf( stderr, "%s\n", handle->base.sqlSource->chars );
 	DaoPostgreSQLHD_PrepareBindings( handle );
-	handle->res = PQprepare( model->conn, handle->name->chars, str->chars, handle->base.paramCount, handle->paramTypes );
-	if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
+	if( DaoPostgreSQLHD_Prepare( handle ) == 0 ){
 		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 		return;
 	}
@@ -631,11 +648,9 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutValue( proc, p[0] );
 	if( handle->base.prepared ==0 ){
 		DaoPostgreSQLDB *db = handle->model;
-		DString *sql = handle->base.sqlSource;
 		if( handle->res ) PQclear( handle->res );
 		DaoPostgreSQLHD_PrepareBindings( handle );
-		handle->res = PQprepare( db->conn, handle->name->chars, sql->chars, handle->base.paramCount, handle->paramTypes );
-		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
+		if( DaoPostgreSQLHD_Prepare( handle ) == 0 ){
 			DaoProcess_RaiseError( proc, "Param", PQerrorMessage( db->conn ) );
 			return;
 		}
@@ -657,10 +672,8 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 
 	if( handle->base.prepared ==0 ){
 		DaoPostgreSQLDB *db = handle->model;
-		DString *sql = handle->base.sqlSource;
 		if( handle->res ) PQclear( handle->res );
-		handle->res = PQprepare( db->conn, handle->name->chars, sql->chars, handle->base.paramCount, handle->paramTypes );
-		if( PQresultStatus( handle->res ) != PGRES_COMMAND_OK ){
+		if( DaoPostgreSQLHD_Prepare( handle ) == 0 ){
 			DaoProcess_RaiseError( proc, "Param", PQerrorMessage( db->conn ) );
 			return 0;
 		}
@@ -1275,7 +1288,9 @@ static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 int DaoPostgresql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	DaoMap *engines;
+	DaoNamespace *cryptons = DaoVmSpace_LinkModule( vms, ns, "crypto" );
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
+
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
 	DaoNamespace_DefineType( sqlns, "map<string,string>", "HSTORE" );
 	DaoNamespace_DefineType( sqlns, "tuple<...>", "JSON" );

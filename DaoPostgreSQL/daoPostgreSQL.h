@@ -20,6 +20,7 @@ struct DaoPostgreSQLDB
 	DaoSQLDatabase base;
 
 	PGconn  *conn;
+	DMap    *stmts;
 };
 
 DaoPostgreSQLDB* DaoPostgreSQLDB_New();
