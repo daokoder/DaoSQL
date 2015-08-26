@@ -9,6 +9,7 @@
 
 #include<stdint.h>
 #include"dao.h"
+#include"daoStdtype.h"
 #include"daoType.h"
 #include"daoClass.h"
 #include"daoObject.h"
@@ -29,18 +30,22 @@ enum{ DAO_SQLITE, DAO_MYSQL, DAO_POSTGRESQL };
 
 struct DaoSQLDatabase
 {
-	int       type;
+	DAO_CSTRUCT_COMMON;
+
+	int       etype;
 	DString  *name;
 	DString  *host;
 	DString  *user;
 	DString  *password;
 	DMap     *dataClass; /* DMap<DaoClass*,int> */
 };
-void DaoSQLDatabase_Init( DaoSQLDatabase *self, int type );
+void DaoSQLDatabase_Init( DaoSQLDatabase *self, DaoType *type, int etype );
 void DaoSQLDatabase_Clear( DaoSQLDatabase *self );
 
 struct DaoSQLHandle
 {
+	DAO_CSTRUCT_COMMON;
+
 	DaoSQLDatabase  *database;
 
 	DList    *classList;
@@ -59,7 +64,7 @@ struct DaoSQLHandle
 	DString  *pardata[ MAX_PARAM_COUNT ];
 	DString  *resdata[ MAX_PARAM_COUNT ];
 };
-void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db );
+void DaoSQLHandle_Init( DaoSQLHandle *self, DaoType *type, DaoSQLDatabase *db );
 void DaoSQLHandle_Clear( DaoSQLHandle *self );
 
 extern DaoTypeBase DaoSQLDatabase_Typer;

@@ -33,7 +33,6 @@ struct DaoMySQLHD
 	DaoMySQLDB   *model;
 
 	MYSQL_STMT  *stmt;
-	MYSQL_RES   *res;
 	MYSQL_BIND   parbind[ MAX_PARAM_COUNT ];
 	MYSQL_BIND   resbind[ MAX_PARAM_COUNT ];
 };

@@ -7,9 +7,10 @@
 #include"string.h"
 #include"daoSQL.h"
 
-void DaoSQLDatabase_Init( DaoSQLDatabase *self, int type )
+void DaoSQLDatabase_Init( DaoSQLDatabase *self, DaoType *type, int etype )
 {
-	self->type = type;
+	DaoCstruct_Init( (DaoCstruct*)self, type );
+	self->etype = etype;
 	self->dataClass = DMap_New(0,0);
 	self->name = DString_New();
 	self->host = DString_New();
@@ -21,6 +22,7 @@ void DaoSQLDatabase_Init( DaoSQLDatabase *self, int type )
 }
 void DaoSQLDatabase_Clear( DaoSQLDatabase *self )
 {
+	DaoCstruct_Free( (DaoCstruct*) self );
 	DString_Delete( self->name );
 	DString_Delete( self->host );
 	DString_Delete( self->user );
@@ -55,48 +57,49 @@ DaoTypeBase DaoSQLDatabase_Typer =
 
 static void DaoSQLDatabase_SetName( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DString_Assign( self->name, p[1]->xString.value );
 }
 static void DaoSQLDatabase_SetHost( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DString_Assign( self->host, p[1]->xString.value );
 }
 static void DaoSQLDatabase_SetUser( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DString_Assign( self->user, p[1]->xString.value );
 }
 static void DaoSQLDatabase_SetPassword( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DString_Assign( self->password, p[1]->xString.value );
 }
 static void DaoSQLDatabase_GetName( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DaoProcess_PutString( proc, self->name );
 }
 static void DaoSQLDatabase_GetHost( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DaoProcess_PutString( proc, self->host );
 }
 static void DaoSQLDatabase_GetUser( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DaoProcess_PutString( proc, self->user );
 }
 static void DaoSQLDatabase_GetPassword( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLDatabase *self = (DaoSQLDatabase*) DaoValue_TryGetCdata( p[0] );
+	DaoSQLDatabase *self = (DaoSQLDatabase*) p[0];
 	DaoProcess_PutString( proc, self->password );
 }
 
-void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db )
+void DaoSQLHandle_Init( DaoSQLHandle *self, DaoType *type, DaoSQLDatabase *db )
 {
 	int i;
+	DaoCstruct_Init( (DaoCstruct*)self, type );
 	self->database = db;
 	self->sqlSource = DString_New();
 	self->buffer = DString_New();
@@ -119,6 +122,7 @@ void DaoSQLHandle_Init( DaoSQLHandle *self, DaoSQLDatabase *db )
 void DaoSQLHandle_Clear( DaoSQLHandle *self )
 {
 	int i;
+	DaoCstruct_Free( (DaoCstruct*) self );
 	for( i=0; i<MAX_PARAM_COUNT; i++ ){
 		DString_Delete( self->pardata[i] );
 		DString_Delete( self->resdata[i] );
@@ -214,7 +218,7 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 	DNode *node;
 	char *tpname;
 	int i;
-	switch( self->type ){
+	switch( self->etype ){
 	case DAO_SQLITE     : DString_SetChars( sql, "__SQLITE_TABLE_PROPERTY__" ); break;
 	case DAO_MYSQL      : DString_SetChars( sql, "__MYSQL_TABLE_PROPERTY__" );  break;
 	case DAO_POSTGRESQL : DString_SetChars( sql, "__POSTGRESQL_TABLE_PROPERTY__" ); break;
@@ -237,29 +241,29 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 		if( strcmp( tpname, "INTEGER_PRIMARY_KEY" ) ==0 ){
 			DString_AppendChars( sql, "INTEGER PRIMARY KEY" );
 		}else if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) ==0 ){
-			if( self->type == DAO_SQLITE ){
+			if( self->etype == DAO_SQLITE ){
 				DString_AppendChars( sql, "INTEGER PRIMARY KEY AUTOINCREMENT" );
-			}else if( self->type == DAO_POSTGRESQL ){
+			}else if( self->etype == DAO_POSTGRESQL ){
 				DString_AppendChars( sql, "SERIAL PRIMARY KEY" );
 			}else{
 				DString_AppendChars( sql, "BIGINT PRIMARY KEY AUTO_INCREMENT" );
 			}
 		}else if( type == dao_sql_type_date ){
-			if( self->type == DAO_POSTGRESQL ){
+			if( self->etype == DAO_POSTGRESQL ){
 				DString_AppendChars( sql, "DATE" );
 			}else{
 				DString_AppendChars( sql, "INTEGER" );
 			}
 		}else if( type == dao_sql_type_timestamp ){
-			if( self->type == DAO_POSTGRESQL ){
+			if( self->etype == DAO_POSTGRESQL ){
 				DString_AppendChars( sql, "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" );
-			}else if( self->type == DAO_MYSQL ){
+			}else if( self->etype == DAO_MYSQL ){
 				DString_AppendChars( sql, "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" );
 			}else{
 				DString_AppendChars( sql, "BIGINT" );
 			}
 		}else if( type == dao_type_datetime ){
-			if( self->type == DAO_POSTGRESQL ){
+			if( self->etype == DAO_POSTGRESQL ){
 				DString_AppendChars( sql, tpname );
 			}else{
 				DString_AppendChars( sql, "BIGINT" );
@@ -330,7 +334,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString_Append( self->sqlSource, tabname );
 	DString_AppendChars( self->sqlSource, "(" );
 	for(i=1,k=0; i<klass->objDataName->size; i++){
-		if( self->database->type == DAO_POSTGRESQL ){
+		if( self->database->etype == DAO_POSTGRESQL ){
 			DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[i]->dtype );
 			char *tpname = type->name->chars;
 			if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ){
@@ -345,13 +349,13 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 	DString_AppendChars( self->sqlSource, ") VALUES(" );
 	for(i=1,k=0; i<klass->objDataName->size; i++){
 		DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[i]->dtype );
-		if( self->database->type == DAO_POSTGRESQL ){
+		if( self->database->etype == DAO_POSTGRESQL ){
 			char *tpname = type->name->chars;
 			if( strcmp( tpname, "INTEGER_PRIMARY_KEY_AUTO_INCREMENT" ) == 0 ) continue;
 		}
 		self->partypes[self->paramCount++] = type;
 		if( k++ ) DString_AppendChars( self->sqlSource, "," );
-		if( self->database->type == DAO_POSTGRESQL ){
+		if( self->database->etype == DAO_POSTGRESQL ){
 			sprintf( buf, "$%i", k );
 			DString_AppendChars( self->sqlSource, buf );
 			if( strcmp( type->name->chars, "HSTORE" ) == 0 ){
@@ -363,7 +367,7 @@ int DaoSQLHandle_PrepareInsert( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 			DString_AppendChars( self->sqlSource, "?" );
 		}
 	}
-	if( self->database->type == DAO_POSTGRESQL ){
+	if( self->database->etype == DAO_POSTGRESQL ){
 		DString_AppendChars( self->sqlSource, ") RETURNING " );
 		DString_Append( self->sqlSource, keyname );
 		DString_AppendChars( self->sqlSource, ";" );
@@ -499,7 +503,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 			DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[j]->dtype );
 			if( type == dao_sql_type_date ) goto HandleNormalField;
 			if( type == dao_sql_type_timestamp ) goto HandleNormalField;
-			if( type->tid == DAO_MAP && self->database->type == DAO_POSTGRESQL ){
+			if( type->tid == DAO_MAP && self->database->etype == DAO_POSTGRESQL ){
 				DaoMap *keys = object ? (DaoMap*) object->objValues[j] : NULL ;
 				DNode *it = keys ? DaoMap_First(keys) : NULL;
 				if( object == NULL ){
@@ -517,7 +521,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 					DString_AppendChars( self->sqlSource, "->" );
 					DString_AppendSQL( self->sqlSource, it->key.pValue->xString.value, 1, "\'" );
 				}
-			}else if( type->tid == DAO_TUPLE && self->database->type == DAO_POSTGRESQL ){
+			}else if( type->tid == DAO_TUPLE && self->database->etype == DAO_POSTGRESQL ){
 				DaoTuple *json = object ? (DaoTuple*) object->objValues[j] : NULL ;
 				DString *path;
 				if( object == NULL ){
@@ -624,7 +628,7 @@ int DaoSQLHandle_PrepareUpdate( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 }
 static void DaoSQLHandle_SQLString( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutString( proc, handler->sqlSource );
 }
 void DString_AppendSQL( DString *self, DString *content, int escape, const char *quote )
@@ -646,7 +650,7 @@ void DString_AppendSQL( DString *self, DString *content, int escape, const char 
 }
 static void DaoSQLHandle_Inline( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 
 	if( handler->boolCount ) DString_AppendChars( handler->sqlSource, " AND " );
@@ -655,7 +659,7 @@ static void DaoSQLHandle_Inline( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DString *fname, *tabname = NULL;
 	DaoValue *field = p[1];
 	DaoValue *value = p[2];
@@ -704,7 +708,7 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 		DString_AppendSQL( handler->sqlSource, fname, value->type == DAO_STRING, "\'" );
 	}else{
 		handler->partypes[handler->paramCount++] = type;
-		if( handler->database->type == DAO_POSTGRESQL ){
+		if( handler->database->etype == DAO_POSTGRESQL ){
 			char buf[20];
 			sprintf( buf, "$%i", handler->paramCount );
 			DString_AppendChars( handler->sqlSource, buf );
@@ -725,13 +729,13 @@ static void DaoSQLHandle_Add( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_Where( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " WHERE " );
 }
 static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char *op )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DString *tabname = NULL;
 	DaoValue *field = p[1];
 	DaoValue *value = p[2];
@@ -767,7 +771,7 @@ static void DaoSQLHandle_Operator( DaoProcess *proc, DaoValue *p[], int N, char 
 			return;
 		}
 		handler->partypes[handler->paramCount++] = data->xVar.dtype;
-		if( handler->database->type == DAO_POSTGRESQL ){
+		if( handler->database->etype == DAO_POSTGRESQL ){
 			char buf[20];
 			sprintf( buf, "$%i", handler->paramCount );
 			DString_AppendChars( handler->sqlSource, buf );
@@ -804,7 +808,7 @@ static void DaoSQLHandle_LE( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DString *table = NULL;
 	DList *values;
 	DaoValue *val;
@@ -850,41 +854,41 @@ static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_OR( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " OR " );
 	handler->boolCount = 0;
 }
 static void DaoSQLHandle_And( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " AND " );
 	handler->boolCount = 0;
 }
 static void DaoSQLHandle_Not( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " NOT " );
 	handler->boolCount = 0;
 }
 static void DaoSQLHandle_LBrace( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, "(" );
 	handler->boolCount = 0;
 }
 static void DaoSQLHandle_RBrace( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, ")" );
 }
 static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoClass *c1, *c2;
 	DString *tabname1 = NULL;
 	DString *tabname2 = NULL;
@@ -939,7 +943,7 @@ static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_GroupBy( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " GROUP BY " );
 	if( p[1]->type == DAO_CLASS ){
@@ -954,7 +958,7 @@ static void DaoSQLHandle_GroupBy( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	int desc = 0;
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " ORDER BY " );
@@ -978,7 +982,7 @@ static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " LIMIT " );
 	DaoValue_GetString( p[1], handler->buffer );
@@ -991,7 +995,7 @@ static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handler = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
 	handler->stopQuery = 1;
 }
 
@@ -1318,7 +1322,6 @@ DaoTypeBase conTimeTyper =
 int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
 	char *lang = getenv( "DAO_HELP_LANG" );
-	DaoTypeBase *typers[] = { & DaoSQLDatabase_Typer, & DaoSQLHandle_Typer, NULL };
 	DaoNamespace *timens = DaoVmSpace_LinkModule( vms, ns, "time" );
 	DaoNamespace *timens2 = DaoVmSpace_GetNamespace( vms, "time" );
 	DaoNamespace *sqlns = DaoVmSpace_GetNamespace( vms, "SQL" );
@@ -1391,7 +1394,8 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	dao_sql_type_timestamp = DaoNamespace_DefineType( sqlns, "TimeType<time::DateTime>", "TIMESTAMP" );
 	dao_type_datetime = _DaoTime_Type();
 
-	DaoNamespace_WrapTypes( sqlns, typers );
+	DaoNamespace_WrapType( sqlns, & DaoSQLDatabase_Typer, DAO_CSTRUCT, 0 );
+	DaoNamespace_WrapType( sqlns, & DaoSQLHandle_Typer, DAO_CSTRUCT, 0 );
 	DaoNamespace_WrapFunctions( sqlns, sqlMeths );
 
 	engines = DaoMap_New(0);

@@ -7,11 +7,13 @@
 #include"string.h"
 #include"daoSQLite.h"
 
+static DaoType *dao_type_sqlite3_database = NULL;
+static DaoType *dao_type_sqlite3_handle = NULL;
 
 DaoSQLiteDB* DaoSQLiteDB_New()
 {
 	DaoSQLiteDB *self = malloc( sizeof(DaoSQLiteDB) );
-	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, DAO_SQLITE );
+	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, dao_type_sqlite3_database, DAO_SQLITE );
 	self->db = NULL;
 	self->stmt = NULL;
 	return self;
@@ -53,12 +55,10 @@ static DaoTypeBase DaoSQLiteDB_Typer =
 	{ & DaoSQLDatabase_Typer, 0 }, {0}, 
 	(FuncPtrDel) DaoSQLiteDB_Delete, NULL };
 
-static DaoType *dao_type_sqlite3_database = NULL;
-
 DaoSQLiteHD* DaoSQLiteHD_New( DaoSQLiteDB *model )
 {
 	DaoSQLiteHD *self = malloc( sizeof(DaoSQLiteHD) );
-	DaoSQLHandle_Init( (DaoSQLHandle*) self, (DaoSQLDatabase*) model );
+	DaoSQLHandle_Init( (DaoSQLHandle*) self, dao_type_sqlite3_handle, (DaoSQLDatabase*) model );
 	self->model = model;
 	self->stmt = NULL;
 	return self;
@@ -88,13 +88,12 @@ static DaoTypeBase DaoSQLiteHD_Typer =
 	{ & DaoSQLHandle_Typer, 0 }, {0},
 	(FuncPtrDel) DaoSQLiteHD_Delete, NULL };
 
-static DaoType *dao_type_sqlite3_handle = NULL;
 
 static void DaoSQLiteDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLiteDB *model = DaoSQLiteDB_New();
 	DString_Assign( model->base.name, p[0]->xString.value );
-	DaoProcess_PutCdata( proc, model, dao_type_sqlite3_database );
+	DaoProcess_PutValue( proc, (DaoValue*) model );
 	if( sqlite3_open( model->base.name->chars, & model->db ) ){
 		DaoProcess_RaiseError( proc, NULL, sqlite3_errmsg( model->db ) );
 		sqlite3_close( model->db );
@@ -103,7 +102,7 @@ static void DaoSQLiteDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLiteDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DaoClass *klass = (DaoClass*) p[1];
 	DString *sql = DString_New();
 	sqlite3_stmt *stmt = NULL;
@@ -121,7 +120,7 @@ static void DaoSQLiteDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLiteDB_DeleteTable( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DaoClass *klass = (DaoClass*) p[1];
 	DString *sql = DString_New();
 	sqlite3_stmt *stmt = NULL;
@@ -139,7 +138,7 @@ static void DaoSQLiteDB_DeleteTable( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLiteDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DString *sql = p[1]->xString.value;
 	sqlite3_stmt *stmt = NULL;
 	int k = 0;
@@ -237,11 +236,11 @@ static void DaoSQLiteDB_InsertObject( DaoProcess *proc, DaoSQLiteHD *handle, Dao
 }
 static void DaoSQLiteDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DaoSQLiteHD *handle = DaoSQLiteHD_New( model );
 	DString *str = handle->base.sqlSource;
 	int i;
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_sqlite3_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	if( sqlite3_prepare_v2( model->db, str->chars, str->size, & handle->stmt, NULL ) ){
 		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
@@ -252,29 +251,29 @@ static void DaoSQLiteDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLiteDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DaoSQLiteHD *handle = DaoSQLiteHD_New( model );
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_sqlite3_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareDelete( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 }
 static void DaoSQLiteDB_Select( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DaoSQLiteHD *handle = DaoSQLiteHD_New( model );
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_sqlite3_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareSelect( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//printf( "%s\n", handle->base.sqlSource->chars );
 }
 static void DaoSQLiteDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0]->xCdata.data;
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DaoSQLiteHD *handle = DaoSQLiteHD_New( model );
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_sqlite3_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareUpdate( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 }
 static void DaoSQLiteHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
 	int i;
 	DaoProcess_PutValue( proc, p[0] );
 	for(i=1; i<N; ++i){
@@ -287,7 +286,7 @@ static void DaoSQLiteHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
 	DaoValue *value = p[1];
 	sqlite3 *db = handle->model->db;
 	sqlite3_stmt *stmt = handle->stmt;
@@ -312,7 +311,7 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 static int DaoSQLiteHD_TryPrepare( DaoProcess *proc, DaoValue *p[], int N )
 {
 	int i;
-	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
 
 	if( handle->base.prepared ==0 ){
 		DString *sql = handle->base.sqlSource;
@@ -337,7 +336,7 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 {
 	daoint i, j, k, m, count;
 	const unsigned char *txt;
-	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
 	DaoObject *object;
 	DaoClass  *klass;
 	DaoType *type;
@@ -400,7 +399,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoType *type;
 	DaoValue *value;
 	DaoValue *params[DAO_MAX_PARAM+1];
-	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
 	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
 	const unsigned char *txt;
 	daoint i, j, k = 0;
@@ -435,7 +434,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0]->xCdata.data;
+	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
 	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
 	int k;
 
@@ -456,8 +455,8 @@ int DaoSqlite_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	dao_type_sqlite3_database = DaoNamespace_WrapType( sqlns, & DaoSQLiteDB_Typer, DAO_CDATA, 0 );
-	dao_type_sqlite3_handle = DaoNamespace_WrapType( sqlns, & DaoSQLiteHD_Typer, DAO_CDATA, 0 );
+	dao_type_sqlite3_database = DaoNamespace_WrapType( sqlns, & DaoSQLiteDB_Typer, DAO_CSTRUCT, 0 );
+	dao_type_sqlite3_handle = DaoNamespace_WrapType( sqlns, & DaoSQLiteHD_Typer, DAO_CSTRUCT, 0 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
 	DaoMap_InsertChars( engines, "SQLite", (DaoValue*) dao_type_sqlite3_database );
 	return 0;

@@ -57,10 +57,14 @@
 #define DATEOID         1082
 #define TIMESTAMPOID    1114
 
+
+static DaoType *dao_type_postgresql_database = NULL;
+static DaoType *dao_type_postgresql_handle = NULL;
+
 DaoPostgreSQLDB* DaoPostgreSQLDB_New()
 {
 	DaoPostgreSQLDB *self = malloc( sizeof(DaoPostgreSQLDB) );
-	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, DAO_POSTGRESQL );
+	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, dao_type_postgresql_database, DAO_POSTGRESQL );
 	self->conn = NULL;
 	return self;
 }
@@ -102,14 +106,13 @@ static DaoTypeBase DaoPostgreSQLDB_Typer =
 	{ & DaoSQLDatabase_Typer, NULL }, { NULL }, 
 	(FuncPtrDel) DaoPostgreSQLDB_Delete, NULL };
 
-static DaoType *dao_type_postgresql_database = NULL;
 
 DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 {
 	int i;
 	char buf[100];
 	DaoPostgreSQLHD *self = malloc( sizeof(DaoPostgreSQLHD) );
-	DaoSQLHandle_Init( (DaoSQLHandle*) self, (DaoSQLDatabase*) model );
+	DaoSQLHandle_Init( (DaoSQLHandle*) self, dao_type_postgresql_handle, (DaoSQLDatabase*) model );
 	self->model = model;
 	self->res = NULL;
 	self->name = DString_New();
@@ -119,17 +122,9 @@ DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 }
 void DaoPostgreSQLHD_Delete( DaoPostgreSQLHD *self )
 {
-	int i;
+	DaoSQLHandle_Clear( & self->base );
 	if( self->res ) PQclear( self->res );
-	for( i=0; i<MAX_PARAM_COUNT; i++ ){
-		DString_Delete( self->base.pardata[i] );
-		DString_Delete( self->base.resdata[i] );
-	}
 	DString_Delete( self->name );
-	DString_Delete( self->base.sqlSource );
-	DString_Delete( self->base.buffer );
-	DList_Delete( self->base.classList );
-	DList_Delete( self->base.countList );
 	free( self );
 }
 static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
@@ -265,7 +260,6 @@ static DaoTypeBase DaoPostgreSQLHD_Typer =
 	{ & DaoSQLHandle_Typer, NULL }, { NULL },
 	(FuncPtrDel) DaoPostgreSQLHD_Delete, NULL };
 
-static DaoType *dao_type_postgresql_handle = NULL;
 
 static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -274,7 +268,7 @@ static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 	if( N >1 ) DString_Assign( model->base.host, p[1]->xString.value );
 	if( N >2 ) DString_Assign( model->base.user, p[2]->xString.value );
 	if( N >3 ) DString_Assign( model->base.password, p[3]->xString.value );
-	DaoProcess_PutCdata( proc, model, dao_type_postgresql_database );
+	DaoProcess_PutValue( proc, (DaoValue*) model );
 	// TODO: port!
 	model->conn = PQsetdbLogin( model->base.host->chars, NULL, NULL, NULL,
 			model->base.name->chars, model->base.user->chars, model->base.password->chars );
@@ -287,7 +281,7 @@ static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoPostgreSQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DaoClass *klass = (DaoClass*) p[1];
 	DString *sql = DString_New();
 	PGresult *res;
@@ -300,7 +294,7 @@ static void DaoPostgreSQLDB_CreateTable( DaoProcess *proc, DaoValue *p[], int N 
 }
 static void DaoPostgreSQLDB_DeleteTable( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DaoClass *klass = (DaoClass*) p[1];
 	DString *sql = DString_New();
 	PGresult *res;
@@ -313,7 +307,7 @@ static void DaoPostgreSQLDB_DeleteTable( DaoProcess *proc, DaoValue *p[], int N 
 }
 static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DString *sql = p[1]->xString.value;
 	PGresult *res;
 	res = PQexec( model->conn, sql->chars );
@@ -573,12 +567,12 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 }
 static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DaoPostgreSQLHD *handle = DaoPostgreSQLHD_New( model );
 	DString *str = handle->base.sqlSource;
 	int i;
 
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareInsert( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//fprintf( stderr, "%s\n", handle->base.sqlSource->chars );
 	DaoPostgreSQLHD_PrepareBindings( handle );
@@ -592,32 +586,32 @@ static void DaoPostgreSQLDB_Insert( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoPostgreSQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DaoPostgreSQLHD *handle = DaoPostgreSQLHD_New( model );
 
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareDelete( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 }
 static void DaoPostgreSQLDB_Select( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DaoPostgreSQLHD *handle = DaoPostgreSQLHD_New( model );
 
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareSelect( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 	//printf( "%s\n", handle->base.sqlSource->chars );
 }
 static void DaoPostgreSQLDB_Update( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0]->xCdata.data;
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DaoPostgreSQLHD *handle = DaoPostgreSQLHD_New( model );
 
-	DaoProcess_PutValue( proc, (DaoValue*)DaoCdata_New( dao_type_postgresql_handle, handle ) );
+	DaoProcess_PutValue( proc, (DaoValue*)handle );
 	if( DaoSQLHandle_PrepareUpdate( (DaoSQLHandle*) handle, proc, p, N ) ==0 ) return;
 }
 static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
 	DaoValue *value;
 	int i;
 	DaoProcess_PutValue( proc, p[0] );
@@ -631,7 +625,7 @@ static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
 	DaoValue *value = p[1];
 	int index = p[2]->xInteger.value;
 	DaoProcess_PutValue( proc, p[0] );
@@ -655,7 +649,7 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 }
 static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int status[2] )
 {
-	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
 	DaoPostgreSQLDB *model = handle->model;
 	int i, ret;
 
@@ -735,7 +729,7 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 	uint32_t ivalue32;
 	uint64_t ivalue64;
 	daoint i, j, k, m, len;
-	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
 	DaoPostgreSQLDB *model = handle->model;
 	DaoObject *object;
 	DaoClass  *klass;
@@ -828,7 +822,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	daoint i, j, k, m, entry, row;
 	dao_integer *count = DaoProcess_PutBoolean( proc, 0 );
-	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
 	DaoPostgreSQLDB *model = handle->model;
 	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoObject *object;
@@ -857,7 +851,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0]->xCdata.data;
+	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
 	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
 	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
 	if( PQntuples( handle->res ) ){
@@ -869,7 +863,7 @@ static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 
 static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, const char *op, int update )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DString *fname, *tabname = NULL;
 	DaoValue *field = p[1];
 	DaoValue *value = p[2];
@@ -934,19 +928,19 @@ static void DaoPostgreSQLHD_HStore( DaoProcess *proc, DaoValue *p[], int N, cons
 }
 static void DaoPostgreSQLHD_HStoreSet( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DaoPostgreSQLHD_HStore( proc, p, N, " || ", 1 );
 	handle->setCount ++;
 }
 static void DaoPostgreSQLHD_HStoreDelete( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DaoPostgreSQLHD_HStore( proc, p, N, " - ", 1 );
 	handle->setCount ++;
 }
 static void DaoPostgreSQLHD_HStoreContain( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DaoPostgreSQLHD_HStore( proc, p, N, " @> ", 0 );
 	handle->boolCount ++;
 }
@@ -963,7 +957,7 @@ static void DString_AppendCastAs( DString *sql, DaoType *cast )
 
 static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DString *fname, *tabname = NULL;
 	DaoString *field = (DaoString*) p[1];
 	DaoString *key = (DaoString*) p[2];
@@ -1029,7 +1023,7 @@ static void DaoPostgreSQLHD_Add( DaoProcess *proc, DaoValue *p[], int N )
 }
 static void DaoPostgreSQLHD_Operator( DaoProcess *proc, DaoValue *p[], int N, char *op )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DString *mbstring, *tabname = NULL;
 	DaoString *field = (DaoString*) p[1];
 	DaoString *key = (DaoString*) p[2];
@@ -1125,7 +1119,7 @@ static void DString_AppendPath( DString *self, DaoList *path )
 
 static void DaoPostgreSQLHD_Operator2( DaoProcess *proc, DaoValue *p[], int N, char *op )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DString *mbstring, *tabname = NULL;
 	DaoString *field = (DaoString*) p[1];
 	DaoList *path = (DaoList*) p[2];
@@ -1208,7 +1202,7 @@ static void DaoPostgreSQLHD_LE2( DaoProcess *proc, DaoValue *p[], int N )
 
 static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DString *tabname = NULL;
 	DString *field = DaoValue_TryGetString( p[1] );
 	DString *key = DaoValue_TryGetString( p[2] );
@@ -1244,7 +1238,7 @@ static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N )
 
 static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N )
 {
-	DaoSQLHandle *handle = (DaoSQLHandle*) p[0]->xCdata.data;
+	DaoSQLHandle *handle = (DaoSQLHandle*) p[0];
 	DString *tabname = NULL;
 	DString *field = DaoValue_TryGetString( p[1] );
 	DaoList *path = DaoValue_CastList( p[2] );
@@ -1285,8 +1279,8 @@ int DaoPostgresql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
 	DaoNamespace_DefineType( sqlns, "map<string,string>", "HSTORE" );
 	DaoNamespace_DefineType( sqlns, "tuple<...>", "JSON" );
-	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLDB_Typer, DAO_CDATA, 0 );
-	dao_type_postgresql_handle = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLHD_Typer, DAO_CDATA, 0 );
+	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLDB_Typer, DAO_CSTRUCT, 0 );
+	dao_type_postgresql_handle = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLHD_Typer, DAO_CSTRUCT, 0 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
 	DaoMap_InsertChars( engines, "PostgreSQL", (DaoValue*) dao_type_postgresql_database );
 	return 0;
