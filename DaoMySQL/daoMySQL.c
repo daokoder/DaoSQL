@@ -189,6 +189,7 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 	DaoTime *time = NULL;
 
 	//printf( "%i: %s\n", index, type->name->chars );
+	if( type ) type = DaoType_GetBaseType( type );
 	switch( value->type ){
 	case DAO_NONE :
 		bind->buffer_type = MYSQL_TYPE_NULL;
@@ -220,22 +221,15 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 			time = (DaoTime*) value->xCinValue.value;
 			bind->buffer_type = MYSQL_TYPE_TIMESTAMP;
 		}
-
-		if( time != NULL ){
-			MYSQL_TIME *ts = (MYSQL_TIME*) pbuf;
-			bind->buffer = pbuf;
-			bind->is_null = 0;
-			bind->length = 0;
-			ts->year = time->time.year;
-			ts->month = time->time.month;
-			ts->day = time->time.day;
-			ts->hour = time->time.hour;
-			ts->minute = time->time.minute;
-			ts->second = time->time.second;
-		}
 		break;
 	case DAO_CPOD :
-		if( value->xCpod.ctype == dao_type_datetime ){
+		if( type == dao_sql_type_date ){
+			time = (DaoTime*) value;
+			bind->buffer_type = MYSQL_TYPE_DATE;
+		}else if( type == dao_sql_type_timestamp ){
+			time = (DaoTime*) value;
+			bind->buffer_type = MYSQL_TYPE_TIMESTAMP;
+		}else if( value->xCpod.ctype == dao_type_datetime ){
 			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			bind->buffer_type = MYSQL_TYPE_LONGLONG;
@@ -245,6 +239,19 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 	default :
 		DaoProcess_RaiseError( proc, "Value", "" );
 		break;
+	}
+
+	if( time != NULL ){
+		MYSQL_TIME *ts = (MYSQL_TIME*) pbuf;
+		bind->buffer = pbuf;
+		bind->is_null = 0;
+		bind->length = 0;
+		ts->year = time->time.year;
+		ts->month = time->time.month;
+		ts->day = time->time.day;
+		ts->hour = time->time.hour;
+		ts->minute = time->time.minute;
+		ts->second = time->time.second;
 	}
 }
 static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoObject *object )

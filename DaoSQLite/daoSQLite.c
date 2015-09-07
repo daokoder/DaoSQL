@@ -181,6 +181,8 @@ static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index
 	sqlite3 *db = self->model->db;
 	sqlite3_stmt *stmt = self->stmt;
 	int k = SQLITE_MISUSE;
+
+	if( type ) type = DaoType_GetBaseType( type );
 	switch( value->type ){
 	case DAO_NONE :
 		k = sqlite3_bind_null( stmt, index );
@@ -210,7 +212,15 @@ static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index
 		}
 		break;
 	case DAO_CPOD :
-		if( value->xCpod.ctype == dao_type_datetime ){
+		if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
+			DaoTime *time = (DaoTime*) value;
+			int days = _DTime_ToDay( time->time );
+			k = sqlite3_bind_int( stmt, index, days );
+		}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
+			DaoTime *time = (DaoTime*) value;
+			int64_t msecs = _DTime_ToMicroSeconds( time->time );
+			k = sqlite3_bind_int64( stmt, index, msecs );
+		}else if( value->xCpod.ctype == dao_type_datetime ){
 			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			k = sqlite3_bind_int64( stmt, index, msecs );

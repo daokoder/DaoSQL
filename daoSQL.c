@@ -1375,8 +1375,11 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace_DefineType( sqlns, "string", "CHAR16" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR24" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR32" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR48" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR64" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR96" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR128" );
+	DaoNamespace_DefineType( sqlns, "string", "CHAR192" );
 	DaoNamespace_DefineType( sqlns, "string", "CHAR256" );
 
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR2" );
@@ -1386,8 +1389,11 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR16" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR24" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR32" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR48" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR64" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR96" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR128" );
+	DaoNamespace_DefineType( sqlns, "string", "VARCHAR192" );
 	DaoNamespace_DefineType( sqlns, "string", "VARCHAR256" );
 
 	dao_sql_type_date = DaoNamespace_DefineType( sqlns, "DateType<time::DateTime>", "DATE" );
@@ -1406,6 +1412,15 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	//   load sqlite;
 	//   io.writeln( SQL::Engines )
 	// Because it will not be able to encode "Database<SQLite>"!
+	//
+	// Here "SQL::Engines" will be encoded as a whole by encoding a constant
+	// evaluation block. But the constant map also exists as a copy in the local
+	// constant table. It is copied by the parser and possibly by the optimizer
+	// as well. For the new copy, it will need to be re-encoded when encoding
+	// routine constants. But it contains an element of type "Database<SQLite>",
+	// and this type is not expressed in the code, so it cannot be encoded
+	// as constant evaluation which is the only way of encoding user defined
+	// C/C++ types and values.
 	*/
 	DaoNamespace_AddValue( sqlns, "Engines", (DaoValue*) engines, NULL );
 

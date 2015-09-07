@@ -394,6 +394,7 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 
 	self->paramLengths[index] = 0;
 	self->paramFormats[index] = 0;
+	if( type ) type = DaoType_GetBaseType( type );
 	switch( value->type ){
 	case DAO_NONE :
 		self->paramValues[index] = NULL;
@@ -447,7 +448,21 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		}
 		break;
 	case DAO_CPOD :
-		if( value->xCpod.ctype == dao_type_datetime ){
+		if( type == dao_sql_type_date ){
+			DaoTime *time = (DaoTime*) value;
+			int days = _DTime_ToDay( time->time );
+			self->paramFormats[index] = 1;
+			self->paramLengths[index] = sizeof(uint32_t);
+			self->paramValues[index] = (char*) & self->paramInts32[index];
+			self->paramInts32[index] = htonl( days );
+		}else if( type == dao_sql_type_timestamp ){
+			DaoTime *time = (DaoTime*) value;
+			int64_t msecs = _DTime_ToMicroSeconds( time->time );
+			self->paramFormats[index] = 1;
+			self->paramLengths[index] = sizeof(uint64_t);
+			self->paramValues[index] = (char*) & self->paramInts64[index];
+			self->paramInts64[index] = htobe64( msecs );
+		}else if( value->xCpod.ctype == dao_type_datetime ){
 			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			self->paramFormats[index] = 1;
