@@ -58,6 +58,7 @@ static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Select( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Update( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
@@ -70,6 +71,7 @@ static DaoFuncItem modelMeths[]=
 	{ DaoMySQLDB_Select, "Select( self: Database<MySQL>, object, ... ) => Handle<MySQL>"},
 	{ DaoMySQLDB_Update, "Update( self: Database<MySQL>, object, ... ) => Handle<MySQL>"},
 	{ DaoMySQLDB_Query,  "Query( self: Database<MySQL>, sql: string ) => bool" },
+	{ DaoMySQLDB_Rows,  "AffectedRows( self: Database<MySQL> ) => int" },
 	{ NULL, NULL }
 };
 
@@ -175,11 +177,16 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0];
 	DString *sql = p[1]->xString.value;
 	if( mysql_query( model->mysql, sql->chars ) ){
-		DaoProcess_PutInteger( proc, 0 );
+		DaoProcess_PutBoolean( proc, 0 );
 		DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
 		return;
 	}
 	DaoProcess_PutBoolean( proc, 1 );
+}
+static void DaoMySQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0];
+	DaoProcess_PutInteger( proc, mysql_affected_rows( model->mysql ) );
 }
 static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, DaoProcess *proc )
 {
