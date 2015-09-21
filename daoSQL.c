@@ -143,6 +143,7 @@ static void DaoSQLHandle_GT( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_GE( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_LT( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_LE( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLHandle_CMP( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_OR( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_And( DaoProcess *proc, DaoValue *p[], int N );
@@ -176,6 +177,8 @@ static DaoFuncItem handlerMeths[]=
 	{ DaoSQLHandle_GE, "GE( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
 	{ DaoSQLHandle_LT, "LT( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
 	{ DaoSQLHandle_LE, "LE( self: @Handle, table: class, field: string, value: any=none )=>@Handle" },
+	{ DaoSQLHandle_CMP, "CMP( self: @Handle, field1: string, oper: enum<EQ,NE,GT,GE,LT,LE>, field2: string )=>@Handle" },
+	{ DaoSQLHandle_CMP, "CMP( self: @Handle, table1: class, field1: string, oper: enum<EQ,NE,GT,GE,LT,LE>, table2: class, field2: string )=>@Handle" },
 	{ DaoSQLHandle_IN, "In( self: @Handle, field: string, values:list<@T>={} )=>@Handle" },
 	{ DaoSQLHandle_IN, "In( self: @Handle, table: class, field: string, values:list<@T>={} )=>@Handle" },
 	{ DaoSQLHandle_OR,"Or( self: @Handle )=>@Handle" },
@@ -805,6 +808,75 @@ static void DaoSQLHandle_LT( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoSQLHandle_LE( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLHandle_Operator( proc, p, N, "<=" );
+}
+static void DaoSQLHandle_CMP( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
+	DString *tabname1 = NULL;
+	DString *tabname2 = NULL;
+	DaoValue *field1 = p[1];
+	DaoValue *oper = p[2];
+	DaoValue *field2 = p[3];
+	DaoClass *klass = NULL;
+	DaoClass *klass1 = NULL;
+	DaoClass *klass2 = NULL;
+	DaoValue *data;
+
+	DaoProcess_PutValue( proc, p[0] );
+	if( handler->classList->size == 0 ){
+		DaoProcess_RaiseError( proc, "Param", "" );
+		return;
+	}
+	klass = handler->classList->items.pClass[0];
+	if( handler->boolCount ) DString_AppendChars( handler->sqlSource, " AND " );
+	if( p[1]->type == DAO_CLASS ){
+		klass1 = (DaoClass*) p[1];
+		field1 = p[2];
+		oper = p[3];
+		klass2 = (DaoClass*) p[4];
+		field2 = p[5];
+	}
+	if( klass1 ){
+		tabname1 = DaoSQLDatabase_TableName( klass1 );
+		DString_Append( handler->sqlSource, tabname1 );
+		DString_AppendChars( handler->sqlSource, "." );
+	}else{
+		klass1 = klass;
+	}
+	DString_Append( handler->sqlSource, field1->xString.value );
+
+	switch( oper->xEnum.value ){
+	case 0 : DString_AppendChars( handler->sqlSource, " = "  ); break;
+	case 1 : DString_AppendChars( handler->sqlSource, " != " ); break;
+	case 2 : DString_AppendChars( handler->sqlSource, " > "  ); break;
+	case 3 : DString_AppendChars( handler->sqlSource, " >= " ); break;
+	case 4 : DString_AppendChars( handler->sqlSource, " < "  ); break;
+	case 5 : DString_AppendChars( handler->sqlSource, " <= " ); break;
+	}
+
+	if( klass2 ){
+		tabname2 = DaoSQLDatabase_TableName( klass2 );
+		DString_Append( handler->sqlSource, tabname2 );
+		DString_AppendChars( handler->sqlSource, "." );
+	}else{
+		klass2 = klass;
+	}
+	DString_Append( handler->sqlSource, field2->xString.value );
+
+	data = DaoClass_GetData( klass1, field1->xString.value, NULL );
+	if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
+		DaoProcess_RaiseError( proc, "Param", "" );
+		return;
+	}
+
+	data = DaoClass_GetData( klass2, field2->xString.value, NULL );
+	if( data == NULL || data->xBase.subtype != DAO_OBJECT_VARIABLE ){
+		DaoProcess_RaiseError( proc, "Param", "" );
+		return;
+	}
+
+	handler->boolCount ++;
+	//fprintf( stderr, "%s\n", handler->sqlSource->chars );
 }
 static void DaoSQLHandle_IN( DaoProcess *proc, DaoValue *p[], int N )
 {
