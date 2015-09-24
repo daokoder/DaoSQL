@@ -18,6 +18,7 @@
 
 #define DAO_HAS_TIME
 #define DAO_HAS_CRYPTO
+#define DAO_HAS_DECIMAL
 #include"dao_api.h"
 
 #define MAX_PARAM_COUNT 64
@@ -93,6 +94,7 @@ extern DaoType *dao_sql_type_integer_primary_key_auto_increment;
 extern DaoType *dao_sql_type_real;
 extern DaoType *dao_sql_type_float;
 extern DaoType *dao_sql_type_double;
+extern DaoType *dao_sql_type_decimal;
 extern DaoType *dao_sql_type_date;
 extern DaoType *dao_sql_type_timestamp;
 extern DaoType *dao_type_datetime;

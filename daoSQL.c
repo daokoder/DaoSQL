@@ -273,6 +273,8 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			}
 		}else if( type == dao_sql_type_double ){
 			DString_AppendChars( sql, "DOUBLE PRECISION" );
+		}else if( type == dao_sql_type_decimal ){
+			DString_AppendChars( sql, "DECIMAL(36,18)" );
 		}else if( strstr( tpname, "CHAR" ) == tpname ){
 			DString_AppendChars( sql, "CHAR(" );
 			DString_AppendChars( sql, tpname+4 );
@@ -1164,6 +1166,7 @@ DaoType *dao_sql_type_integer_primary_key_auto_increment = NULL;
 DaoType *dao_sql_type_real = NULL;
 DaoType *dao_sql_type_float = NULL;
 DaoType *dao_sql_type_double = NULL;
+DaoType *dao_sql_type_decimal = NULL;
 DaoType *dao_sql_type_date = NULL;
 DaoType *dao_sql_type_timestamp = NULL;
 DaoType *dao_type_datetime = NULL;
@@ -1395,7 +1398,9 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 {
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoNamespace *timens = DaoVmSpace_LinkModule( vms, ns, "time" );
+	DaoNamespace *mathns = DaoVmSpace_LinkModule( vms, ns, "decimal" );
 	DaoNamespace *timens2 = DaoVmSpace_GetNamespace( vms, "time" );
+	DaoNamespace *mathns2 = DaoVmSpace_GetNamespace( vms, "math" );
 	DaoNamespace *sqlns = DaoVmSpace_GetNamespace( vms, "SQL" );
 	DaoType *absdate = DaoNamespace_WrapInterface( sqlns, & absDateTyper );
 	DaoType *abstime = DaoNamespace_WrapInterface( sqlns, & absTimeTyper );
@@ -1405,6 +1410,7 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 
 	DaoNamespace_AddConstValue( ns, "SQL", (DaoValue*) sqlns );
 	DaoNamespace_AddConstValue( sqlns, "time", (DaoValue*) timens2 );
+	DaoNamespace_AddConstValue( sqlns, "math", (DaoValue*) mathns2 );
 
 	DaoNamespace_DefineType( sqlns, "$SQLite",     "SQLite" );
 	DaoNamespace_DefineType( sqlns, "$PostgreSQL", "PostgreSQL" );
@@ -1425,7 +1431,9 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 
 	dao_sql_type_real = DaoNamespace_DefineType( sqlns, "float", "REAL" );
 	dao_sql_type_float = DaoNamespace_DefineType( sqlns, "float", "FLOAT" );
-	dao_sql_type_double = DaoNamespace_DefineType( sqlns, "float", "DOUBLE_PRECISION" );
+	dao_sql_type_double = DaoNamespace_DefineType( sqlns, "float", "DOUBLE" );
+
+	dao_sql_type_decimal = DaoNamespace_DefineType( sqlns, "math::Decimal", "DECIMAL" );
 
 	DaoNamespace_DefineType( sqlns, "string", "TEXT" );
 	DaoNamespace_DefineType( sqlns, "string", "MEDIUMTEXT" );

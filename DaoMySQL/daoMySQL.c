@@ -195,7 +195,7 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 	char *pbuf = self->base.pardata[index]->chars;
 	DaoTime *time = NULL;
 
-	//printf( "%i: %s\n", index, type->name->chars );
+	//printf( "%i: %i %s\n", index, value->type, type?type->name->chars:"" );
 	if( type ) type = DaoType_GetBaseType( type );
 	switch( value->type ){
 	case DAO_NONE :
@@ -230,7 +230,13 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 		}
 		break;
 	case DAO_CPOD :
-		if( type == dao_sql_type_date ){
+		if( type == dao_sql_type_decimal ){
+			DaoDecimal *decimal = (DaoDecimal*) value;
+			_DaoDecimal_ToString( decimal, self->base.pardata[index] );
+			bind->buffer_type = MYSQL_TYPE_NEWDECIMAL;
+			bind->buffer = self->base.pardata[index]->chars;
+			bind->buffer_length = self->base.pardata[index]->size;
+		}else if( type == dao_sql_type_date ){
 			time = (DaoTime*) value;
 			bind->buffer_type = MYSQL_TYPE_DATE;
 		}else if( type == dao_sql_type_timestamp ){
@@ -485,7 +491,13 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 				}
 				break;
 			case DAO_CPOD :
-				if( value->xCpod.ctype == dao_type_datetime ){
+				if( value->xCpod.ctype == dao_sql_type_decimal ){
+					DaoDecimal *decimal = (DaoDecimal*) value;
+					handle->resbind[0].buffer_type = MYSQL_TYPE_NEWDECIMAL;
+					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
+					DString_Reset( handle->base.resdata[0], handle->base.reslen );
+					_DaoDecimal_FromString( decimal, handle->base.resdata[0], proc );
+				}else if( value->xCpod.ctype == dao_type_datetime ){
 					DaoTime *time = (DaoTime*) value;
 					handle->resbind[0].buffer_type = MYSQL_TYPE_LONGLONG;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
