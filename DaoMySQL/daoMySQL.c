@@ -368,7 +368,7 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		handle->base.prepared = 1;
 	}
 	handle->base.executed = 0;
-	if( index >= MAX_PARAM_COUNT ){
+	if( index >= handle->base.paramCount || index >= MAX_PARAM_COUNT ){
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}

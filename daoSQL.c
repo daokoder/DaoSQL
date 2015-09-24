@@ -506,6 +506,7 @@ int DaoSQLHandle_PrepareSelect( DaoSQLHandle *self, DaoProcess *proc, DaoValue *
 		if( self->classList->size >1 ) DString_AppendChars( self->sqlSource, "," );
 		for(j=1,k=0; j<m; j++){
 			DaoType *type = DaoType_GetBaseType( klass->instvars->items.pVar[j]->dtype );
+			if( type == dao_sql_type_decimal ) goto HandleNormalField;
 			if( type == dao_sql_type_date ) goto HandleNormalField;
 			if( type == dao_sql_type_timestamp ) goto HandleNormalField;
 			if( type->tid == DAO_MAP && self->database->etype == DAO_POSTGRESQL ){
@@ -592,6 +593,9 @@ HandleNormalField:
 					DString_AppendChars( self->sqlSource, "." );
 				}
 				DString_Append( self->sqlSource, klass->objDataName->items.pString[j] );
+				if( type == dao_sql_type_decimal && self->database->etype == DAO_POSTGRESQL ){
+					DString_AppendChars( self->sqlSource, "::TEXT" );
+				}
 			}
 		}
 	}

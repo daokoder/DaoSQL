@@ -212,14 +212,11 @@ static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index
 		}
 		break;
 	case DAO_CPOD :
-		if( value->xCinValue.cintype->vatype == dao_sql_type_date ){
-			DaoTime *time = (DaoTime*) value;
-			int days = _DTime_ToDay( time->time );
-			k = sqlite3_bind_int( stmt, index, days );
-		}else if( value->xCinValue.cintype->vatype == dao_sql_type_timestamp ){
-			DaoTime *time = (DaoTime*) value;
-			int64_t msecs = _DTime_ToMicroSeconds( time->time );
-			k = sqlite3_bind_int64( stmt, index, msecs );
+		if( value->xCpod.ctype == dao_sql_type_decimal ){
+			DaoDecimal *decimal = (DaoDecimal*) value;
+			DString *buffer = self->base.pardata[index];
+			_DaoDecimal_ToString( decimal, buffer );
+			k = sqlite3_bind_text( stmt, index, buffer->chars, buffer->size, SQLITE_TRANSIENT );
 		}else if( value->xCpod.ctype == dao_type_datetime ){
 			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
@@ -332,7 +329,7 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 	}
 	stmt = handle->stmt;
 	handle->base.executed = 0;
-	if( index >= MAX_PARAM_COUNT ){
+	if( index >= (handle->base.paramCount+1) || index >= MAX_PARAM_COUNT ){
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
@@ -410,7 +407,14 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 				}
 				break;
 			case DAO_CPOD :
-				if( value->xCpod.ctype == dao_type_datetime ){
+				if( value->xCpod.ctype == dao_sql_type_decimal ){
+					DaoDecimal *decimal = (DaoDecimal*) value;
+					DString *buffer = handle->base.resdata[0];
+					txt = sqlite3_column_text( handle->stmt, k );
+					count = sqlite3_column_bytes( handle->stmt, k );
+					DString_SetBytes( buffer, (char*)txt, count );
+					_DaoDecimal_FromString( decimal, buffer, proc );
+				}else if( value->xCpod.ctype == dao_type_datetime ){
 					DaoTime *time = (DaoTime*) value;
 					time->time = _DTime_FromMicroSeconds( sqlite3_column_int64( handle->stmt, k ) );
 				}

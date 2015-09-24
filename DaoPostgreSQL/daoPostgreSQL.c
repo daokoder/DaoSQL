@@ -56,6 +56,7 @@
 #define TEXTOID         25
 #define DATEOID         1082
 #define TIMESTAMPOID    1114
+#define NUMERICOID      1700
 
 
 static DaoType *dao_type_postgresql_database = NULL;
@@ -448,7 +449,12 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 		}
 		break;
 	case DAO_CPOD :
-		if( type == dao_sql_type_date ){
+		if( type == dao_sql_type_decimal ){
+			DaoDecimal *decimal = (DaoDecimal*) value;
+			_DaoDecimal_ToString( decimal, self->base.pardata[index] );
+			self->paramLengths[index] = self->base.pardata[index]->size;
+			self->paramValues[index] = self->base.pardata[index]->chars;
+		}else if( type == dao_sql_type_date ){
 			DaoTime *time = (DaoTime*) value;
 			int days = _DTime_ToDay( time->time );
 			self->paramFormats[index] = 1;
@@ -570,7 +576,9 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 			}
 			break;
 		case DAO_CPOD :
-			if( type == dao_type_datetime ){
+			if( type == dao_sql_type_decimal ){
+				self->paramTypes[k] = NUMERICOID;
+			}else if( type == dao_type_datetime ){
 				self->paramTypes[k] = TIMESTAMPOID;
 			}
 			break;
@@ -671,7 +679,7 @@ static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N )
 		}
 		handle->base.prepared = 1;
 	}
-	if( index >= MAX_PARAM_COUNT ){
+	if( index >= handle->base.paramCount || index >= MAX_PARAM_COUNT ){
 		DaoProcess_RaiseError( proc, "Param", "" );
 		return;
 	}
@@ -832,6 +840,14 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 						DaoTime *time = (DaoTime*) value;
 						time->time = _DTime_FromMicroSeconds( be64toh( *(uint64_t*) pdata ) );
 					}
+				}
+				break;
+			case DAO_CPOD :
+				if( type == dao_sql_type_decimal ){
+					DaoDecimal *decimal = (DaoDecimal*) value;
+					len = PQgetlength( handle->res, row, k-1 );
+					DString_SetBytes( handle->base.resdata[0], pdata, len );
+					_DaoDecimal_FromString( decimal, handle->base.resdata[0], proc );
 				}
 				break;
 			case DAO_TUPLE :
