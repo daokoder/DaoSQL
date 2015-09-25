@@ -21,6 +21,7 @@ struct DaoPostgreSQLDB
 
 	PGconn  *conn;
 	DMap    *stmts;
+	daoint   rows;
 };
 
 DaoPostgreSQLDB* DaoPostgreSQLDB_New();

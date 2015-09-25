@@ -12,7 +12,7 @@ static DaoType *dao_type_sqlite3_handle = NULL;
 
 DaoSQLiteDB* DaoSQLiteDB_New()
 {
-	DaoSQLiteDB *self = malloc( sizeof(DaoSQLiteDB) );
+	DaoSQLiteDB *self = dao_calloc( 1, sizeof(DaoSQLiteDB) );
 	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, dao_type_sqlite3_database, DAO_SQLITE );
 	self->stmts = DHash_New( DAO_DATA_STRING, 0 );
 	self->db = NULL;
@@ -29,7 +29,7 @@ void DaoSQLiteDB_Delete( DaoSQLiteDB *self )
 	DaoSQLDatabase_Clear( (DaoSQLDatabase*) self );
 	if( self->stmt ) sqlite3_finalize( self->stmt );
 	if( self->db ) sqlite3_close( self->db );
-	free( self );
+	dao_free( self );
 }
 sqlite3_stmt* DaoSQLiteDB_GetSTMT( DaoSQLiteDB *self, DString *source )
 {
@@ -53,6 +53,10 @@ static void DaoSQLiteDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteDB_Select( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteDB_Update( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteDB_Query( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLiteDB_BeginTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLiteDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLiteDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLiteDB_Rows( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
@@ -65,6 +69,10 @@ static DaoFuncItem modelMeths[]=
 	{ DaoSQLiteDB_Select, "Select( self: Database<SQLite>, object, ... ) => Handle<SQLite>" },
 	{ DaoSQLiteDB_Update, "Update( self: Database<SQLite>, object, ... ) => Handle<SQLite>" },
 	{ DaoSQLiteDB_Query,  "Query( self: Database<SQLite>, sql: string ) => bool" },
+	{ DaoSQLiteDB_BeginTrans,     "Begin( self: Database<SQLite> ) => bool" },
+	{ DaoSQLiteDB_CommitTrans,    "Commit( self: Database<SQLite> ) => bool" },
+	{ DaoSQLiteDB_RollBackTrans,  "RollBack( self: Database<SQLite> ) => bool" },
+	{ DaoSQLiteDB_Rows,  "AffectedRows( self: Database<SQLite> ) => int" },
 	{ NULL, NULL }
 };
 
@@ -75,7 +83,7 @@ static DaoTypeBase DaoSQLiteDB_Typer =
 
 DaoSQLiteHD* DaoSQLiteHD_New( DaoSQLiteDB *model )
 {
-	DaoSQLiteHD *self = malloc( sizeof(DaoSQLiteHD) );
+	DaoSQLiteHD *self = dao_calloc( 1, sizeof(DaoSQLiteHD) );
 	DaoSQLHandle_Init( (DaoSQLHandle*) self, dao_type_sqlite3_handle, (DaoSQLDatabase*) model );
 	self->model = model;
 	self->stmt = NULL;
@@ -84,7 +92,7 @@ DaoSQLiteHD* DaoSQLiteHD_New( DaoSQLiteDB *model )
 void DaoSQLiteHD_Delete( DaoSQLiteHD *self )
 {
 	DaoSQLHandle_Clear( (DaoSQLHandle*) self );
-	free( self );
+	dao_free( self );
 }
 static void DaoSQLiteHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
@@ -158,22 +166,73 @@ static void DaoSQLiteDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
 	DString *sql = p[1]->xString.value;
 	sqlite3_stmt *stmt = NULL;
-	int k = 0;
-	if( sqlite3_prepare_v2( model->db, sql->chars, sql->size, & stmt, NULL ) ){
-		sqlite3_finalize( stmt );
-		DaoProcess_PutBoolean( proc, 0 );
-		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
-		return;
-	}
-	k = sqlite3_step( stmt );
-	if( k > SQLITE_OK && k < SQLITE_ROW ){
-		sqlite3_finalize( stmt );
-		DaoProcess_PutBoolean( proc, 0 );
-		DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
-		return;
+	if( sqlite3_prepare_v2( model->db, sql->chars, sql->size, & stmt, NULL ) == 0 ){
+		int k = sqlite3_step( stmt );
+		if( k <= SQLITE_OK || k >= SQLITE_ROW ){
+			sqlite3_finalize( stmt );
+			DaoProcess_PutBoolean( proc, 1 );
+			return;
+		}
 	}
 	sqlite3_finalize( stmt );
-	DaoProcess_PutBoolean( proc, 1 );
+	DaoProcess_PutBoolean( proc, 0 );
+	DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
+}
+static void DaoSQLiteDB_BeginTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
+	DString sql = DString_WrapChars( "BEGIN TRANSACTION;" );
+	sqlite3_stmt *stmt = NULL;
+	if( sqlite3_prepare_v2( model->db, sql.chars, sql.size, & stmt, NULL ) == 0 ){
+		int k = sqlite3_step( stmt );
+		if( k <= SQLITE_OK || k >= SQLITE_ROW ){
+			sqlite3_finalize( stmt );
+			DaoProcess_PutBoolean( proc, 1 );
+			return;
+		}
+	}
+	sqlite3_finalize( stmt );
+	DaoProcess_PutBoolean( proc, 0 );
+	DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
+}
+static void DaoSQLiteDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
+	DString sql = DString_WrapChars( "COMMIT;" );
+	sqlite3_stmt *stmt = NULL;
+	if( sqlite3_prepare_v2( model->db, sql.chars, sql.size, & stmt, NULL ) == 0 ){
+		int k = sqlite3_step( stmt );
+		if( k <= SQLITE_OK || k >= SQLITE_ROW ){
+			sqlite3_finalize( stmt );
+			DaoProcess_PutBoolean( proc, 1 );
+			return;
+		}
+	}
+	sqlite3_finalize( stmt );
+	DaoProcess_PutBoolean( proc, 0 );
+	DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
+}
+static void DaoSQLiteDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
+	DString sql = DString_WrapChars( "ROLLBACK;" );
+	sqlite3_stmt *stmt = NULL;
+	if( sqlite3_prepare_v2( model->db, sql.chars, sql.size, & stmt, NULL ) == 0 ){
+		int k = sqlite3_step( stmt );
+		if( k <= SQLITE_OK || k >= SQLITE_ROW ){
+			sqlite3_finalize( stmt );
+			DaoProcess_PutBoolean( proc, 1 );
+			return;
+		}
+	}
+	sqlite3_finalize( stmt );
+	DaoProcess_PutBoolean( proc, 0 );
+	DaoProcess_RaiseError( proc, "Param", sqlite3_errmsg( model->db ) );
+}
+static void DaoSQLiteDB_Rows( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLiteDB *model = (DaoSQLiteDB*) p[0];
+	DaoProcess_PutInteger( proc, sqlite3_changes( model->db ) );
 }
 static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index, DaoProcess *proc )
 {

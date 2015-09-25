@@ -12,7 +12,7 @@ static DaoType *dao_type_mysql_handle = NULL;
 
 DaoMySQLDB* DaoMySQLDB_New()
 {
-	DaoMySQLDB *self = malloc( sizeof(DaoMySQLDB) );
+	DaoMySQLDB *self = dao_calloc( 1, sizeof(DaoMySQLDB) );
 	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, dao_type_mysql_database, DAO_MYSQL );
 	self->mysql = mysql_init( NULL );
 	self->stmt = mysql_stmt_init( self->mysql );
@@ -31,7 +31,7 @@ void DaoMySQLDB_Delete( DaoMySQLDB *self )
 	DaoSQLDatabase_Clear( (DaoSQLDatabase*) self );
 	mysql_stmt_close( self->stmt );
 	mysql_close( self->mysql );
-	free( self );
+	dao_free( self );
 }
 MYSQL_STMT* DaoMySQLDB_GetSTMT( DaoMySQLDB *self, DString *source )
 {
@@ -58,6 +58,9 @@ static void DaoMySQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Select( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Update( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_BeginTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoMySQLDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
@@ -71,6 +74,9 @@ static DaoFuncItem modelMeths[]=
 	{ DaoMySQLDB_Select, "Select( self: Database<MySQL>, object, ... ) => Handle<MySQL>"},
 	{ DaoMySQLDB_Update, "Update( self: Database<MySQL>, object, ... ) => Handle<MySQL>"},
 	{ DaoMySQLDB_Query,  "Query( self: Database<MySQL>, sql: string ) => bool" },
+	{ DaoMySQLDB_BeginTrans,     "Begin( self: Database<MySQL> ) => bool" },
+	{ DaoMySQLDB_CommitTrans,    "Commit( self: Database<MySQL> ) => bool" },
+	{ DaoMySQLDB_RollBackTrans,  "RollBack( self: Database<MySQL> ) => bool" },
 	{ DaoMySQLDB_Rows,  "AffectedRows( self: Database<MySQL> ) => int" },
 	{ NULL, NULL }
 };
@@ -83,7 +89,7 @@ static DaoTypeBase DaoMySQLDB_Typer =
 
 DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 {
-	DaoMySQLHD *self = malloc( sizeof(DaoMySQLHD) );
+	DaoMySQLHD *self = dao_calloc( 1, sizeof(DaoMySQLHD) );
 	int i;
 	DaoSQLHandle_Init( (DaoSQLHandle*) self, dao_type_mysql_handle, (DaoSQLDatabase*) model );
 	self->model = model;
@@ -101,7 +107,7 @@ DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
 void DaoMySQLHD_Delete( DaoMySQLHD *self )
 {
 	DaoSQLHandle_Clear( & self->base );
-	free( self );
+	dao_free( self );
 }
 static void DaoMySQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
@@ -176,12 +182,30 @@ static void DaoMySQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLDB *model = (DaoMySQLDB*) p[0];
 	DString *sql = p[1]->xString.value;
-	if( mysql_query( model->mysql, sql->chars ) ){
-		DaoProcess_PutBoolean( proc, 0 );
-		DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
-		return;
-	}
-	DaoProcess_PutBoolean( proc, 1 );
+	int ret = mysql_query( model->mysql, sql->chars );
+	DaoProcess_PutBoolean( proc, ret == 0 );
+	if( ret ) DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
+}
+static void DaoMySQLDB_BeginTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0];
+	int ret = mysql_query( model->mysql, "START TRANSACTION;" );
+	DaoProcess_PutBoolean( proc, ret == 0 );
+	if( ret ) DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
+}
+static void DaoMySQLDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0];
+	int ret = mysql_query( model->mysql, "COMMIT;" );
+	DaoProcess_PutBoolean( proc, ret == 0 );
+	if( ret ) DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
+}
+static void DaoMySQLDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoMySQLDB *model = (DaoMySQLDB*) p[0];
+	int ret = mysql_query( model->mysql, "ROLLBACK;" );
+	DaoProcess_PutBoolean( proc, ret == 0 );
+	if( ret ) DaoProcess_RaiseError( proc, "Param", mysql_error( model->mysql ) );
 }
 static void DaoMySQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N )
 {

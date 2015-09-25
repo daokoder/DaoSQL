@@ -64,10 +64,9 @@ static DaoType *dao_type_postgresql_handle = NULL;
 
 DaoPostgreSQLDB* DaoPostgreSQLDB_New()
 {
-	DaoPostgreSQLDB *self = malloc( sizeof(DaoPostgreSQLDB) );
+	DaoPostgreSQLDB *self = dao_calloc( 1, sizeof(DaoPostgreSQLDB) );
 	DaoSQLDatabase_Init( (DaoSQLDatabase*) self, dao_type_postgresql_database, DAO_POSTGRESQL );
 	self->stmts = DHash_New( DAO_DATA_STRING, 0 );
-	self->conn = NULL;
 	return self;
 }
 void DaoPostgreSQLDB_Delete( DaoPostgreSQLDB *self )
@@ -75,7 +74,7 @@ void DaoPostgreSQLDB_Delete( DaoPostgreSQLDB *self )
 	DaoSQLDatabase_Clear( (DaoSQLDatabase*) self );
 	DMap_Delete( self->stmts );
 	if( self->conn ) PQfinish( self->conn );
-	free( self );
+	dao_free( self );
 }
 
 static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N );
@@ -87,6 +86,10 @@ static void DaoPostgreSQLDB_DeleteRow( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLDB_Select( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLDB_Update( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLDB_BeginTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoPostgreSQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFuncItem modelMeths[]=
 {
@@ -101,6 +104,10 @@ static DaoFuncItem modelMeths[]=
 	{ DaoPostgreSQLDB_Select, "Select( self: Database<PostgreSQL>, object, ...) => Handle<PostgreSQL>"},
 	{ DaoPostgreSQLDB_Update, "Update( self: Database<PostgreSQL>, object, ...) => Handle<PostgreSQL>"},
 	{ DaoPostgreSQLDB_Query,  "Query( self: Database<PostgreSQL>, sql: string ) => bool" },
+	{ DaoPostgreSQLDB_BeginTrans,     "Begin( self: Database<PostgreSQL> ) => bool" },
+	{ DaoPostgreSQLDB_CommitTrans,    "Commit( self: Database<PostgreSQL> ) => bool" },
+	{ DaoPostgreSQLDB_RollBackTrans,  "RollBack( self: Database<PostgreSQL> ) => bool" },
+	{ DaoPostgreSQLDB_Rows,   "AffectedRows( self: Database<PostgreSQL> ) => int" },
 	{ NULL, NULL }
 };
 
@@ -114,10 +121,9 @@ DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
 {
 	int i;
 	char buf[100];
-	DaoPostgreSQLHD *self = malloc( sizeof(DaoPostgreSQLHD) );
+	DaoPostgreSQLHD *self = dao_calloc( 1, sizeof(DaoPostgreSQLHD) );
 	DaoSQLHandle_Init( (DaoSQLHandle*) self, dao_type_postgresql_handle, (DaoSQLDatabase*) model );
 	self->model = model;
-	self->res = NULL;
 	self->name = DString_New();
 	return self;
 }
@@ -126,7 +132,7 @@ void DaoPostgreSQLHD_Delete( DaoPostgreSQLHD *self )
 	DaoSQLHandle_Clear( & self->base );
 	if( self->res ) PQclear( self->res );
 	DString_Delete( self->name );
-	free( self );
+	dao_free( self );
 }
 static void DaoPostgreSQLHD_Insert( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
@@ -310,13 +316,47 @@ static void DaoPostgreSQLDB_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
 	DString *sql = p[1]->xString.value;
-	PGresult *res;
-	res = PQexec( model->conn, sql->chars );
+	PGresult *res = PQexec( model->conn, sql->chars );
 	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
 		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
 	}
 	DaoProcess_PutBoolean( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
 	PQclear( res );
+}
+static void DaoPostgreSQLDB_BeginTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
+	PGresult *res = PQexec( model->conn, "START TRANSACTION;" );
+	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
+	}
+	DaoProcess_PutBoolean( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
+	PQclear( res );
+}
+static void DaoPostgreSQLDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
+	PGresult *res = PQexec( model->conn, "COMMIT;" );
+	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
+	}
+	DaoProcess_PutBoolean( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
+	PQclear( res );
+}
+static void DaoPostgreSQLDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
+	PGresult *res = PQexec( model->conn, "ROLLBACK;" );
+	if( PQresultStatus( res ) != PGRES_COMMAND_OK ){
+		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
+	}
+	DaoProcess_PutBoolean( proc,PQresultStatus( res ) == PGRES_COMMAND_OK );
+	PQclear( res );
+}
+static void DaoPostgreSQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoPostgreSQLDB *model = (DaoPostgreSQLDB*) p[0];
+	DaoProcess_PutInteger( proc, model->rows );
 }
 static void DString_AppendKeyValues( DString *self, DaoMap *keyvalues )
 {
@@ -693,6 +733,7 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 
 	//printf( "%s\n", handle->base.sqlSource->chars );
 
+	handle->model->rows = 0;
 	if( handle->base.prepared ==0 ){
 		DaoPostgreSQLDB *db = handle->model;
 		if( handle->res ) PQclear( handle->res );
@@ -705,6 +746,7 @@ static int DaoPostgreSQLHD_Execute( DaoProcess *proc, DaoValue *p[], int N, int 
 	if( handle->res ) PQclear( handle->res );
 	handle->res = PQexecPrepared( model->conn, handle->name->chars, handle->base.paramCount,
 			handle->paramValues, handle->paramLengths, handle->paramFormats, 1 );
+	handle->model->rows = strtol( PQcmdTuples( handle->res ), NULL, 10 );
 	ret = PQresultStatus( handle->res );
 	if( ret != status[0] && ret != status[1] ){
 		DaoProcess_RaiseError( proc, "Param", PQerrorMessage( model->conn ) );
