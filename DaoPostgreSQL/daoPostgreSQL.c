@@ -890,6 +890,9 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 					len = PQgetlength( handle->res, row, k-1 );
 					DString_SetBytes( handle->base.resdata[0], pdata, len );
 					_DaoDecimal_FromString( decimal, handle->base.resdata[0], proc );
+				}else if( type == dao_type_datetime ){
+					DaoTime *time = (DaoTime*) value;
+					time->time = _DTime_FromMicroSeconds( be64toh( *(uint64_t*) pdata ) );
 				}
 				break;
 			case DAO_TUPLE :

@@ -283,6 +283,12 @@ void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString 
 			DString_AppendChars( sql, "VARCHAR(" );
 			DString_AppendChars( sql, tpname+7 );
 			DString_AppendChars( sql, ")" );
+		}else if( strstr( tpname, "BLOB" ) != NULL ){
+			if( self->etype == DAO_POSTGRESQL ){
+				DString_AppendChars( sql, "BYTEA" );
+			}else{
+				DString_AppendChars( sql, tpname );
+			}
 		}else if( strcmp( tpname, "HSTORE" ) == 0 ){
 			DString_AppendChars( sql, "HSTORE" );
 		}else if( strcmp( tpname, "JSON" ) == 0 ){

@@ -289,6 +289,7 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 		ts->hour = time->time.hour;
 		ts->minute = time->time.minute;
 		ts->second = time->time.second;
+		ts->second_part = (time->time.second - ts->second) * 1E6;
 	}
 }
 static void DaoMySQLDB_InsertObject( DaoProcess *proc, DaoMySQLHD *handle, DaoObject *object )
@@ -511,7 +512,8 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 					time->time.day = ts->day;
 					time->time.hour = ts->hour;
 					time->time.minute = ts->minute;
-					time->time.second = ts->second;
+					time->time.second = ts->second + ts->second_part / 1.0E6;
+					//printf( "%i: %i:%i\n", (int)object->objValues[1]->xInteger.value, time->time.hour, time->time.minute );
 				}
 				break;
 			case DAO_CPOD :
