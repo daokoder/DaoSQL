@@ -39,7 +39,7 @@ static void DaoSQLDatabase_GetHost( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLDatabase_GetUser( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLDatabase_GetPassword( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem modelMeths[]=
+static DaoFunctionEntry daoSQLDatabaseMeths[]=
 {
 	{ DaoSQLDatabase_SetName,      "SetName( self: Database, name: string )" },
 	{ DaoSQLDatabase_GetName,      "GetName( self: Database) => string" },
@@ -52,8 +52,31 @@ static DaoFuncItem modelMeths[]=
 	{ NULL, NULL }
 };
 
-DaoTypeBase DaoSQLDatabase_Typer = 
-{ "Database<>", NULL, NULL, modelMeths, {0}, {0}, NULL, NULL };
+
+DaoTypeCore daoSQLDatabaseCore =
+{
+	"Database<>",                                      /* name */
+	sizeof(DaoSQLDatabase),                            /* size */
+	{ NULL },                                          /* bases */
+	NULL,                                              /* numbers */
+	daoSQLDatabaseMeths,                               /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	NULL,                                              /* Delete */
+	NULL                                               /* HandleGC */
+};
 
 static void DaoSQLDatabase_SetName( DaoProcess *proc, DaoValue *p[], int N )
 {
@@ -156,7 +179,7 @@ static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem handlerMeths[]=
+static DaoFunctionEntry daoSQLHandleMeths[]=
 {
 	{ DaoSQLHandle_SQLString, "SQLString( self: @Handle )=>string" },
 	{ DaoSQLHandle_Where,  "Where( self: @Handle )=>@Handle" },
@@ -196,8 +219,31 @@ static DaoFuncItem handlerMeths[]=
 	{ NULL, NULL }
 };
 
-DaoTypeBase DaoSQLHandle_Typer = 
-{ "Handle<>", NULL, NULL, handlerMeths, {0}, {0}, NULL, NULL };
+DaoTypeCore daoSQLHandleCore =
+{
+	"Handle<>",                                        /* name */
+	sizeof(DaoSQLHandle),                              /* size */
+	{ NULL },                                          /* bases */
+	NULL,                                              /* numbers */
+	daoSQLHandleMeths,                                 /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	NULL,                                              /* Delete */
+	NULL                                               /* HandleGC */
+};
+
 
 DString* DaoSQLDatabase_TableName( DaoClass *klass )
 {
@@ -1199,7 +1245,7 @@ static void SQL_TableName( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutString( proc, name );
 }
 
-static DaoFuncItem sqlMeths[]=
+static DaoFunctionEntry sqlMeths[]=
 {
 	{ SQL_EncodeTS,  "Encode( ts: TIMESTAMP ) => int" },
 	{ SQL_DecodeTS,  "Decode( value: int ) => TIMESTAMP" },
@@ -1207,7 +1253,7 @@ static DaoFuncItem sqlMeths[]=
 	{ NULL, NULL }
 };
 
-static DaoFuncItem absDateMeths[] =
+static DaoFunctionEntry absDateMeths[] =
 {
 	{ NULL,  ".year( self: DateType ) => int" },
 	{ NULL,  ".month( self: DateType ) => int" },
@@ -1219,10 +1265,30 @@ static DaoFuncItem absDateMeths[] =
 	{ NULL, NULL }
 };
 
-DaoTypeBase absDateTyper =
+
+DaoTypeCore daoDateTypeCore =
 {
-	"DateType", NULL, NULL, (DaoFuncItem*) absDateMeths, {0}, {0},
-	(FuncPtrDel) NULL, NULL
+	"DateType",                                        /* name */
+	0,                                                 /* size */
+	{ NULL },                                          /* bases */
+	NULL,                                              /* numbers */
+	absDateMeths,                                      /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	NULL,                                              /* Delete */
+	NULL                                               /* HandleGC */
 };
 
 
@@ -1281,22 +1347,41 @@ static void DATE_SetDay( DaoProcess *proc, DaoValue *p[], int N )
 	self->time.day = value;
 }
 
-static DaoFuncItem conDateMeths[] =
+static DaoFunctionEntry conDateMeths[] =
 {
-	{ DATE_GetYear,   ".year( self: DateType2 ) => int" },
-	{ DATE_GetMonth,  ".month( self: DateType2 ) => int" },
-	{ DATE_GetDay,    ".day( self: DateType2 ) => int" },
+	{ DATE_GetYear,   ".year( self: ConcreteDate ) => int" },
+	{ DATE_GetMonth,  ".month( self: ConcreteDate ) => int" },
+	{ DATE_GetDay,    ".day( self: ConcreteDate ) => int" },
 
-	{ DATE_SetYear,   ".year=( self: DateType2 , value: int )" },
-	{ DATE_SetMonth,  ".month=( self: DateType2 , value: int )" },
-	{ DATE_SetDay,    ".day=( self: DateType2 , value: int )" },
+	{ DATE_SetYear,   ".year=( self: ConcreteDate , value: int )" },
+	{ DATE_SetMonth,  ".month=( self: ConcreteDate , value: int )" },
+	{ DATE_SetDay,    ".day=( self: ConcreteDate , value: int )" },
 	{ NULL, NULL }
 };
 
-DaoTypeBase conDateTyper =
+DaoTypeCore daoConcreteDateCore =
 {
-	"DateType2", NULL, NULL, (DaoFuncItem*) conDateMeths, {0}, {0},
-	(FuncPtrDel) NULL, NULL
+	"ConcreteDate",  /* name */
+	0,               /* size */
+	{ NULL },        /* bases */
+	NULL,            /* numbers */
+	conDateMeths,    /* methods */
+	NULL,  NULL,     /* GetField */
+	NULL,  NULL,     /* SetField */
+	NULL,  NULL,     /* GetItem */
+	NULL,  NULL,     /* SetItem */
+	NULL,  NULL,     /* Unary */
+	NULL,  NULL,     /* Binary */
+	NULL,  NULL,     /* Conversion */
+	NULL,  NULL,     /* ForEach */
+	NULL,            /* Print */
+	NULL,            /* Slice */
+	NULL,            /* Compare */
+	NULL,            /* Hash */
+	NULL,            /* Create */
+	NULL,            /* Copy */
+	NULL,            /* Delete */
+	NULL             /* HandleGC */
 };
 
 
@@ -1348,7 +1433,7 @@ static void TIME_SetSecond( DaoProcess *proc, DaoValue *p[], int N )
 	self->time.second = value;
 }
 
-static DaoFuncItem absTimeMeths[] =
+static DaoFunctionEntry absTimeMeths[] =
 {
 //	{ NULL,  ".year( self: TimeType ) => int" },
 //	{ NULL,  ".month( self: TimeType ) => int" },
@@ -1366,11 +1451,31 @@ static DaoFuncItem absTimeMeths[] =
 	{ NULL, NULL }
 };
 
-DaoTypeBase absTimeTyper =
+DaoTypeCore daoTimeTypeCore =
 {
-	"TimeType", NULL, NULL, (DaoFuncItem*) absTimeMeths, {&absDateTyper, NULL}, {0},
-	(FuncPtrDel) NULL, NULL
+	"TimeType",                   /* name */
+	0,                            /* size */
+	{ & daoDateTypeCore, NULL },  /* bases */
+	NULL,                         /* numbers */
+	absTimeMeths,                 /* methods */
+	NULL,  NULL,                  /* GetField */
+	NULL,  NULL,                  /* SetField */
+	NULL,  NULL,                  /* GetItem */
+	NULL,  NULL,                  /* SetItem */
+	NULL,  NULL,                  /* Unary */
+	NULL,  NULL,                  /* Binary */
+	NULL,  NULL,                  /* Conversion */
+	NULL,  NULL,                  /* ForEach */
+	NULL,                         /* Print */
+	NULL,                         /* Slice */
+	NULL,                         /* Compare */
+	NULL,                         /* Hash */
+	NULL,                         /* Create */
+	NULL,                         /* Copy */
+	NULL,                         /* Delete */
+	NULL                          /* HandleGC */
 };
+
 
 
 static void TIME_GetYear( DaoProcess *proc, DaoValue *p[], int N )
@@ -1379,28 +1484,47 @@ static void TIME_GetYear( DaoProcess *proc, DaoValue *p[], int N )
 	DaoProcess_PutInteger( proc, time->time.year );
 }
 
-static DaoFuncItem conTimeMeths[] =
+static DaoFunctionEntry conTimeMeths[] =
 {
-//	{ DATE_GetYear,    ".year( self: TimeType2 ) => int" },
-//	{ DATE_GetMonth,   ".month( self: TimeType2 ) => int" },
-//	{ DATE_GetDay,     ".day( self: TimeType2 ) => int" },
-	{ TIME_GetHour,    ".hour( self: TimeType2 ) => int" },
-	{ TIME_GetMinute,  ".minute( self: TimeType2 ) => int" },
-	{ TIME_GetSecond,  ".second( self: TimeType2 ) => float" },
+//	{ DATE_GetYear,    ".year( self: ConcreteTime ) => int" },
+//	{ DATE_GetMonth,   ".month( self: ConcreteTime ) => int" },
+//	{ DATE_GetDay,     ".day( self: ConcreteTime ) => int" },
+	{ TIME_GetHour,    ".hour( self: ConcreteTime ) => int" },
+	{ TIME_GetMinute,  ".minute( self: ConcreteTime ) => int" },
+	{ TIME_GetSecond,  ".second( self: ConcreteTime ) => float" },
 
-//	{ DATE_SetYear,    ".year=( self: TimeType2 , value: int )" },
-//	{ DATE_SetMonth,   ".month=( self: TimeType2 , value: int )" },
-//	{ DATE_SetDay,     ".day=( self: TimeType2 , value: int )" },
-	{ TIME_SetHour,    ".hour=( self: TimeType2 , value: int )" },
-	{ TIME_SetMinute,  ".minute=( self: TimeType2 , value: int )" },
-	{ TIME_SetSecond,  ".second=( self: TimeType2 , value: float )" },
+//	{ DATE_SetYear,    ".year=( self: ConcreteTime , value: int )" },
+//	{ DATE_SetMonth,   ".month=( self: ConcreteTime , value: int )" },
+//	{ DATE_SetDay,     ".day=( self: ConcreteTime , value: int )" },
+	{ TIME_SetHour,    ".hour=( self: ConcreteTime , value: int )" },
+	{ TIME_SetMinute,  ".minute=( self: ConcreteTime , value: int )" },
+	{ TIME_SetSecond,  ".second=( self: ConcreteTime , value: float )" },
 	{ NULL, NULL }
 };
 
-DaoTypeBase conTimeTyper =
+DaoTypeCore daoConcreteTimeCore =
 {
-	"TimeType2", NULL, NULL, (DaoFuncItem*) conTimeMeths, {&conDateTyper, NULL}, {0},
-	(FuncPtrDel) NULL, NULL
+	"ConcreteTime",                                    /* name */
+	0,                                                 /* size */
+	{ & daoConcreteDateCore, NULL },                   /* bases */
+	NULL,                                              /* numbers */
+	conTimeMeths,                                      /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	NULL,                                              /* Delete */
+	NULL                                               /* HandleGC */
 };
 
 
@@ -1412,10 +1536,10 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace *timens2 = DaoVmSpace_GetNamespace( vms, "time" );
 	DaoNamespace *mathns2 = DaoVmSpace_GetNamespace( vms, "math" );
 	DaoNamespace *sqlns = DaoVmSpace_GetNamespace( vms, "SQL" );
-	DaoType *absdate = DaoNamespace_WrapInterface( sqlns, & absDateTyper );
-	DaoType *abstime = DaoNamespace_WrapInterface( sqlns, & absTimeTyper );
-	DaoType *condate = DaoNamespace_WrapCinType( sqlns, & conDateTyper, absdate, _DaoTime_Type() );
-	DaoType *contime = DaoNamespace_WrapCinType( sqlns, & conTimeTyper, abstime, _DaoTime_Type() );
+	DaoType *absdate = DaoNamespace_WrapInterface( sqlns, & daoDateTypeCore );
+	DaoType *abstime = DaoNamespace_WrapInterface( sqlns, & daoTimeTypeCore );
+	DaoType *condate = DaoNamespace_WrapCinType( sqlns, & daoConcreteDateCore, absdate, _DaoTime_Type() );
+	DaoType *contime = DaoNamespace_WrapCinType( sqlns, & daoConcreteTimeCore, abstime, _DaoTime_Type() );
 	DaoMap *engines;
 
 	DaoNamespace_AddConstValue( ns, "SQL", (DaoValue*) sqlns );
@@ -1490,8 +1614,8 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	dao_sql_type_timestamp = DaoNamespace_DefineType( sqlns, "TimeType<time::DateTime>", "TIMESTAMP" );
 	dao_type_datetime = _DaoTime_Type();
 
-	DaoNamespace_WrapType( sqlns, & DaoSQLDatabase_Typer, DAO_CSTRUCT, 0 );
-	DaoNamespace_WrapType( sqlns, & DaoSQLHandle_Typer, DAO_CSTRUCT, 0 );
+	DaoNamespace_WrapType( sqlns, & daoSQLDatabaseCore, DAO_CSTRUCT, 0 );
+	DaoNamespace_WrapType( sqlns, & daoSQLHandleCore, DAO_CSTRUCT, 0 );
 	DaoNamespace_WrapFunctions( sqlns, sqlMeths );
 
 	engines = DaoMap_New(0);

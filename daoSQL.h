@@ -69,8 +69,8 @@ struct DaoSQLHandle
 void DaoSQLHandle_Init( DaoSQLHandle *self, DaoType *type, DaoSQLDatabase *db );
 void DaoSQLHandle_Clear( DaoSQLHandle *self );
 
-extern DaoTypeBase DaoSQLDatabase_Typer;
-extern DaoTypeBase DaoSQLHandle_Typer;
+extern DaoTypeCore daoSQLDatabaseCore;
+extern DaoTypeCore daoSQLHandleCore;
 
 void DaoSQLDatabase_CreateTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql );
 void DaoSQLDatabase_DeleteTable( DaoSQLDatabase *self, DaoClass *klass, DString *sql );

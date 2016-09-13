@@ -91,7 +91,7 @@ static void DaoPostgreSQLDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N 
 static void DaoPostgreSQLDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem modelMeths[]=
+static DaoFunctionEntry daoPostgreSQLDBMeths[]=
 {
 	{ DaoPostgreSQLDB_DataModel,
 		"Database<PostgreSQL>( name: string, host='', user='', pwd='' ) => Database<PostgreSQL>"
@@ -111,10 +111,31 @@ static DaoFuncItem modelMeths[]=
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoPostgreSQLDB_Typer = 
-{ "Database<PostgreSQL>", NULL, NULL, modelMeths, 
-	{ & DaoSQLDatabase_Typer, NULL }, { NULL }, 
-	(FuncPtrDel) DaoPostgreSQLDB_Delete, NULL };
+DaoTypeCore daoPostgreSQLDBCore =
+{
+	"Database<PostgreSQL>",                            /* name */
+	sizeof(DaoPostgreSQLDB),                           /* size */
+	{ & daoSQLDatabaseCore, NULL },                    /* bases */
+	NULL,                                              /* numbers */
+	daoPostgreSQLDBMeths,                              /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	(DaoDeleteFunction) DaoPostgreSQLDB_Delete,        /* Delete */
+	NULL                                               /* HandleGC */
+};
+
 
 
 DaoPostgreSQLHD* DaoPostgreSQLHD_New( DaoPostgreSQLDB *model )
@@ -161,7 +182,7 @@ static void DaoPostgreSQLHD_LE2( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_Sort( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoPostgreSQLHD_Sort2( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem handleMeths[]=
+static DaoFunctionEntry daoPostgreSQLHDMeths[]=
 {
 	{ DaoPostgreSQLHD_Insert, "Insert( self: Handle<PostgreSQL>, object :@T, ... :@T ) => Handle<PostgreSQL>" },
 	{ DaoPostgreSQLHD_Bind, "Bind( self: Handle<PostgreSQL>, value, index=0 )=>Handle<PostgreSQL>" },
@@ -262,10 +283,31 @@ static DaoFuncItem handleMeths[]=
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoPostgreSQLHD_Typer = 
-{ "Handle<PostgreSQL>", NULL, NULL, handleMeths, 
-	{ & DaoSQLHandle_Typer, NULL }, { NULL },
-	(FuncPtrDel) DaoPostgreSQLHD_Delete, NULL };
+DaoTypeCore daoPostgreSQLHDCore =
+{
+	"Handle<PostgreSQL>",                              /* name */
+	sizeof(DaoPostgreSQLHD),                           /* size */
+	{ & daoSQLHandleCore, NULL },                      /* bases */
+	NULL,                                              /* numbers */
+	daoPostgreSQLHDMeths,                              /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	(DaoDeleteFunction) DaoPostgreSQLHD_Delete,        /* Delete */
+	NULL                                               /* HandleGC */
+};
+
 
 
 static void DaoPostgreSQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
@@ -488,7 +530,7 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 			self->paramInts64[index] = htobe64( msecs );
 		}
 		break;
-	case DAO_CPOD :
+	case DAO_CSTRUCT :
 		if( type == dao_sql_type_decimal ){
 			DaoDecimal *decimal = (DaoDecimal*) value;
 			_DaoDecimal_ToString( decimal, self->base.pardata[index] );
@@ -508,7 +550,7 @@ static void DaoPostgreSQLHD_BindValue( DaoPostgreSQLHD *self, DaoValue *value, i
 			self->paramLengths[index] = sizeof(uint64_t);
 			self->paramValues[index] = (char*) & self->paramInts64[index];
 			self->paramInts64[index] = htobe64( msecs );
-		}else if( value->xCpod.ctype == dao_type_datetime ){
+		}else if( value->xCstruct.ctype == dao_type_datetime ){
 			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			self->paramFormats[index] = 1;
@@ -615,7 +657,7 @@ static void DaoPostgreSQLHD_PrepareBindings( DaoPostgreSQLHD *self )
 				self->paramTypes[k] = TIMESTAMPOID;
 			}
 			break;
-		case DAO_CPOD :
+		case DAO_CSTRUCT :
 			if( type == dao_sql_type_decimal ){
 				self->paramTypes[k] = NUMERICOID;
 			}else if( type == dao_type_datetime ){
@@ -884,7 +926,7 @@ static void DaoPostgreSQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N, da
 					}
 				}
 				break;
-			case DAO_CPOD :
+			case DAO_CSTRUCT :
 				if( type == dao_sql_type_decimal ){
 					DaoDecimal *decimal = (DaoDecimal*) value;
 					len = PQgetlength( handle->res, row, k-1 );
@@ -910,7 +952,7 @@ static int status_ok[2] = { PGRES_COMMAND_OK, PGRES_TUPLES_OK };
 static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 {
 	daoint i, j, k, m, entry, row;
-	dao_integer *count = DaoProcess_PutBoolean( proc, 0 );
+	dao_boolean *count = DaoProcess_PutBoolean( proc, 0 );
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
 	DaoPostgreSQLDB *model = handle->model;
 	DaoValue *params[DAO_MAX_PARAM+1];
@@ -941,7 +983,7 @@ static void DaoPostgreSQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoPostgreSQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoPostgreSQLHD *handle = (DaoPostgreSQLHD*) p[0];
-	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
+	dao_boolean *res = DaoProcess_PutBoolean( proc, 0 );
 	if( DaoPostgreSQLHD_Execute( proc, p, N, status_ok ) != PGRES_TUPLES_OK ) return;
 	if( PQntuples( handle->res ) ){
 		DaoPostgreSQLHD_Retrieve( proc, p, N, 0 );
@@ -1370,8 +1412,8 @@ int DaoPostgresql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
 	DaoNamespace_DefineType( sqlns, "map<string,string>", "HSTORE" );
 	DaoNamespace_DefineType( sqlns, "tuple<...>", "JSON" );
-	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLDB_Typer, DAO_CSTRUCT, 0 );
-	dao_type_postgresql_handle = DaoNamespace_WrapType( sqlns, & DaoPostgreSQLHD_Typer, DAO_CSTRUCT, 0 );
+	dao_type_postgresql_database = DaoNamespace_WrapType( sqlns, & daoPostgreSQLDBCore, DAO_CSTRUCT, 0 );
+	dao_type_postgresql_handle = DaoNamespace_WrapType( sqlns, & daoPostgreSQLHDCore, DAO_CSTRUCT, 0 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
 	DaoMap_InsertChars( engines, "PostgreSQL", (DaoValue*) dao_type_postgresql_database );
 	return 0;

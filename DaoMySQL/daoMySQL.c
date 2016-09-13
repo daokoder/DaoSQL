@@ -63,7 +63,7 @@ static void DaoMySQLDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLDB_Rows( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem modelMeths[]=
+static DaoFunctionEntry daoMySQLDBMeths[]=
 {
 	{ DaoMySQLDB_DataModel,"Database<MySQL>( name : string, host='', user='', pwd='' )"},
 	{ DaoMySQLDB_CreateTable,  "CreateTable( self: Database<MySQL>, klass )" },
@@ -81,10 +81,30 @@ static DaoFuncItem modelMeths[]=
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoMySQLDB_Typer = 
-{ "Database<MySQL>", NULL, NULL, modelMeths, 
-	{ & DaoSQLDatabase_Typer, 0 }, {0}, 
-	(FuncPtrDel) DaoMySQLDB_Delete, NULL };
+DaoTypeCore daoMySQLDBCore =
+{
+	"Database<MySQL>",                                 /* name */
+	sizeof(DaoMySQLDB),                                /* size */
+	{ & daoSQLDatabaseCore, NULL },                    /* bases */
+	NULL,                                              /* numbers */
+	daoMySQLDBMeths,                                   /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	(DaoDeleteFunction) DaoMySQLDB_Delete,             /* Delete */
+	NULL                                               /* HandleGC */
+};
 
 
 DaoMySQLHD* DaoMySQLHD_New( DaoMySQLDB *model )
@@ -114,7 +134,7 @@ static void DaoMySQLHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem handleMeths[]=
+static DaoFunctionEntry daoMySQLHDMeths[]=
 {
 	{ DaoMySQLHD_Insert, "Insert( self: Handle<MySQL>, object: @T, ... : @T ) => Handle<MySQL>" },
 	{ DaoMySQLHD_Bind, "Bind( self: Handle<MySQL>, value, index=0 ) => Handle<MySQL>" },
@@ -123,10 +143,31 @@ static DaoFuncItem handleMeths[]=
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoMySQLHD_Typer = 
-{ "Handle<MySQL>", NULL, NULL, handleMeths, 
-	{ & DaoSQLHandle_Typer, 0 }, {0},
-	(FuncPtrDel) DaoMySQLHD_Delete, NULL };
+DaoTypeCore daoMySQLHDCore =
+{
+	"Handle<MySQL>",                                   /* name */
+	sizeof(DaoMySQLHD),                                /* size */
+	{ & daoSQLHandleCore, NULL },                      /* bases */
+	NULL,                                              /* numbers */
+	daoMySQLHDMeths,                                   /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	(DaoDeleteFunction) DaoMySQLHD_Delete,             /* Delete */
+	NULL                                               /* HandleGC */
+};
+
 
 
 static void DaoMySQLDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
@@ -253,7 +294,7 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 			bind->buffer_type = MYSQL_TYPE_TIMESTAMP;
 		}
 		break;
-	case DAO_CPOD :
+	case DAO_CSTRUCT :
 		if( type == dao_sql_type_decimal ){
 			DaoDecimal *decimal = (DaoDecimal*) value;
 			_DaoDecimal_ToString( decimal, self->base.pardata[index] );
@@ -266,7 +307,7 @@ static void DaoMySQLHD_BindValue( DaoMySQLHD *self, DaoValue *value, int index, 
 		}else if( type == dao_sql_type_timestamp ){
 			time = (DaoTime*) value;
 			bind->buffer_type = MYSQL_TYPE_TIMESTAMP;
-		}else if( value->xCpod.ctype == dao_type_datetime ){
+		}else if( value->xCstruct.ctype == dao_type_datetime ){
 			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			bind->buffer_type = MYSQL_TYPE_LONGLONG;
@@ -516,14 +557,14 @@ static int DaoMySQLHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 					//printf( "%i: %i:%i\n", (int)object->objValues[1]->xInteger.value, time->time.hour, time->time.minute );
 				}
 				break;
-			case DAO_CPOD :
-				if( value->xCpod.ctype == dao_sql_type_decimal ){
+			case DAO_CSTRUCT :
+				if( value->xCstruct.ctype == dao_sql_type_decimal ){
 					DaoDecimal *decimal = (DaoDecimal*) value;
 					handle->resbind[0].buffer_type = MYSQL_TYPE_NEWDECIMAL;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
 					DString_Reset( handle->base.resdata[0], handle->base.reslen );
 					_DaoDecimal_FromString( decimal, handle->base.resdata[0], proc );
-				}else if( value->xCpod.ctype == dao_type_datetime ){
+				}else if( value->xCstruct.ctype == dao_type_datetime ){
 					DaoTime *time = (DaoTime*) value;
 					handle->resbind[0].buffer_type = MYSQL_TYPE_LONGLONG;
 					mysql_stmt_fetch_column( handle->stmt, handle->resbind, k, 0 );
@@ -551,7 +592,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoVmCode *sect;
 	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0];
-	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
+	dao_boolean *res = DaoProcess_PutBoolean( proc, 0 );
 	int i, j, k = 0, rc = 0;
 	int pitch, offset;
 	int entry;
@@ -581,7 +622,7 @@ static void DaoMySQLHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoMySQLHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoMySQLHD *handle = (DaoMySQLHD*) p[0];
-	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
+	dao_boolean *res = DaoProcess_PutBoolean( proc, 0 );
 	if( DaoMySQLHD_Execute( proc, p, N ) == 0 ) return;
 	*res = DaoMySQLHD_Retrieve( proc, p, N );
 	if( handle->base.executed ){
@@ -595,8 +636,8 @@ int DaoMysql_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	dao_type_mysql_database = DaoNamespace_WrapType( sqlns, & DaoMySQLDB_Typer, DAO_CSTRUCT, 0 );
-	dao_type_mysql_handle = DaoNamespace_WrapType( sqlns, & DaoMySQLHD_Typer, DAO_CSTRUCT, 0 );
+	dao_type_mysql_database = DaoNamespace_WrapType( sqlns, & daoMySQLDBCore, DAO_CSTRUCT, 0 );
+	dao_type_mysql_handle = DaoNamespace_WrapType( sqlns, & daoMySQLHDCore, DAO_CSTRUCT, 0 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
 	DaoMap_InsertChars( engines, "MySQL", (DaoValue*) dao_type_mysql_database );
 	mysql_library_init( 0, NULL, NULL );

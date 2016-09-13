@@ -58,7 +58,7 @@ static void DaoSQLiteDB_CommitTrans( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteDB_RollBackTrans( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteDB_Rows( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem modelMeths[]=
+static DaoFunctionEntry daoSQLiteDBMeths[]=
 {
 	{ DaoSQLiteDB_DataModel,"Database<SQLite>( name: string, host='', user='', pwd='' ) => Database<SQLite>"},
 	{ DaoSQLiteDB_CreateTable,  "CreateTable( self: Database<SQLite>, klass )" },
@@ -76,10 +76,33 @@ static DaoFuncItem modelMeths[]=
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoSQLiteDB_Typer = 
-{ "Database<SQLite>", NULL, NULL, modelMeths, 
-	{ & DaoSQLDatabase_Typer, 0 }, {0}, 
-	(FuncPtrDel) DaoSQLiteDB_Delete, NULL };
+
+DaoTypeCore daoSQLiteDBCore =
+{
+	"Database<SQLite>",                                /* name */
+	sizeof(DaoSQLiteDB),                               /* size */
+	{ & daoSQLDatabaseCore, NULL },                    /* bases */
+	NULL,                                              /* numbers */
+	daoSQLiteDBMeths,                                  /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	(DaoDeleteFunction) DaoSQLiteDB_Delete,            /* Delete */
+	NULL                                               /* HandleGC */
+};
+
+
 
 DaoSQLiteHD* DaoSQLiteHD_New( DaoSQLiteDB *model )
 {
@@ -99,7 +122,7 @@ static void DaoSQLiteHD_Bind( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N );
 
-static DaoFuncItem handleMeths[]=
+static DaoFunctionEntry daoSQLiteHDMeths[]=
 {
 	{ DaoSQLiteHD_Insert, "Insert( self: Handle<SQLite>, object: @T, ... : @T ) => Handle<SQLite>" },
 	{ DaoSQLiteHD_Bind,   "Bind( self: Handle<SQLite>, value, index=0 ) => Handle<SQLite>" },
@@ -108,10 +131,31 @@ static DaoFuncItem handleMeths[]=
 	{ NULL, NULL }
 };
 
-static DaoTypeBase DaoSQLiteHD_Typer = 
-{ "Handle<SQLite>", NULL, NULL, handleMeths, 
-	{ & DaoSQLHandle_Typer, 0 }, {0},
-	(FuncPtrDel) DaoSQLiteHD_Delete, NULL };
+
+DaoTypeCore daoSQLiteHDCore =
+{
+	"Handle<SQLite>",                                  /* name */
+	sizeof(DaoSQLiteHD),                               /* size */
+	{ & daoSQLHandleCore, NULL },                      /* bases */
+	NULL,                                              /* numbers */
+	daoSQLiteHDMeths,                                  /* methods */
+	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
+	NULL,                      NULL,                   /* SetField */
+	NULL,                      NULL,                   /* GetItem */
+	NULL,                      NULL,                   /* SetItem */
+	NULL,                      NULL,                   /* Unary */
+	NULL,                      NULL,                   /* Binary */
+	NULL,                      NULL,                   /* Conversion */
+	NULL,                      NULL,                   /* ForEach */
+	NULL,                                              /* Print */
+	NULL,                                              /* Slice */
+	NULL,                                              /* Compare */
+	NULL,                                              /* Hash */
+	NULL,                                              /* Create */
+	NULL,                                              /* Copy */
+	(DaoDeleteFunction) DaoSQLiteHD_Delete,            /* Delete */
+	NULL                                               /* HandleGC */
+};
 
 
 static void DaoSQLiteDB_DataModel( DaoProcess *proc, DaoValue *p[], int N )
@@ -270,13 +314,13 @@ static void DaoSQLiteHD_BindValue( DaoSQLiteHD *self, DaoValue *value, int index
 			k = sqlite3_bind_int64( stmt, index, msecs );
 		}
 		break;
-	case DAO_CPOD :
-		if( value->xCpod.ctype == dao_sql_type_decimal ){
+	case DAO_CSTRUCT :
+		if( value->xCstruct.ctype == dao_sql_type_decimal ){
 			DaoDecimal *decimal = (DaoDecimal*) value;
 			DString *buffer = self->base.pardata[index];
 			_DaoDecimal_ToString( decimal, buffer );
 			k = sqlite3_bind_text( stmt, index, buffer->chars, buffer->size, SQLITE_TRANSIENT );
-		}else if( value->xCpod.ctype == dao_type_datetime ){
+		}else if( value->xCstruct.ctype == dao_type_datetime ){
 			DaoTime *time = (DaoTime*) value;
 			int64_t msecs = _DTime_ToMicroSeconds( time->time );
 			k = sqlite3_bind_int64( stmt, index, msecs );
@@ -465,15 +509,15 @@ static void DaoSQLiteHD_Retrieve( DaoProcess *proc, DaoValue *p[], int N )
 					time->time = _DTime_FromMicroSeconds( sqlite3_column_int64( handle->stmt, k ) );
 				}
 				break;
-			case DAO_CPOD :
-				if( value->xCpod.ctype == dao_sql_type_decimal ){
+			case DAO_CSTRUCT :
+				if( value->xCstruct.ctype == dao_sql_type_decimal ){
 					DaoDecimal *decimal = (DaoDecimal*) value;
 					DString *buffer = handle->base.resdata[0];
 					txt = sqlite3_column_text( handle->stmt, k );
 					count = sqlite3_column_bytes( handle->stmt, k );
 					DString_SetBytes( buffer, (char*)txt, count );
 					_DaoDecimal_FromString( decimal, buffer, proc );
-				}else if( value->xCpod.ctype == dao_type_datetime ){
+				}else if( value->xCstruct.ctype == dao_type_datetime ){
 					DaoTime *time = (DaoTime*) value;
 					time->time = _DTime_FromMicroSeconds( sqlite3_column_int64( handle->stmt, k ) );
 				}
@@ -493,7 +537,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 	DaoValue *value;
 	DaoValue *params[DAO_MAX_PARAM+1];
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
-	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
+	dao_boolean *res = DaoProcess_PutBoolean( proc, 0 );
 	const unsigned char *txt;
 	daoint i, j, k = 0;
 	daoint m, count, entry;
@@ -528,7 +572,7 @@ static void DaoSQLiteHD_Query( DaoProcess *proc, DaoValue *p[], int N )
 static void DaoSQLiteHD_QueryOnce( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLiteHD *handle = (DaoSQLiteHD*) p[0];
-	dao_integer *res = DaoProcess_PutBoolean( proc, 0 );
+	dao_boolean *res = DaoProcess_PutBoolean( proc, 0 );
 	int k;
 
 	if( DaoSQLiteHD_TryPrepare( proc, p, N ) == 0 ) return;
@@ -548,8 +592,8 @@ int DaoSqlite_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 	DaoMap *engines;
 	DaoNamespace *sqlns = DaoVmSpace_LinkModule( vms, ns, "sql" );
 	sqlns = DaoNamespace_GetNamespace( sqlns, "SQL" );
-	dao_type_sqlite3_database = DaoNamespace_WrapType( sqlns, & DaoSQLiteDB_Typer, DAO_CSTRUCT, 0 );
-	dao_type_sqlite3_handle = DaoNamespace_WrapType( sqlns, & DaoSQLiteHD_Typer, DAO_CSTRUCT, 0 );
+	dao_type_sqlite3_database = DaoNamespace_WrapType( sqlns, & daoSQLiteDBCore, DAO_CSTRUCT, 0 );
+	dao_type_sqlite3_handle = DaoNamespace_WrapType( sqlns, & daoSQLiteHDCore, DAO_CSTRUCT, 0 );
 	engines = (DaoMap*) DaoNamespace_FindData( sqlns, "Engines" );
 	DaoMap_InsertChars( engines, "SQLite", (DaoValue*) dao_type_sqlite3_database );
 	return 0;
