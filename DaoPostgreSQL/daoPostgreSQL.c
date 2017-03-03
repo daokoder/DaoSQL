@@ -116,6 +116,7 @@ DaoTypeCore daoPostgreSQLDBCore =
 	"Database<PostgreSQL>",                            /* name */
 	sizeof(DaoPostgreSQLDB),                           /* size */
 	{ & daoSQLDatabaseCore, NULL },                    /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoPostgreSQLDBMeths,                              /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
@@ -288,6 +289,7 @@ DaoTypeCore daoPostgreSQLHDCore =
 	"Handle<PostgreSQL>",                              /* name */
 	sizeof(DaoPostgreSQLHD),                           /* size */
 	{ & daoSQLHandleCore, NULL },                      /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoPostgreSQLHDMeths,                              /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */

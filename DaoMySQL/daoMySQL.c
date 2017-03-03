@@ -86,6 +86,7 @@ DaoTypeCore daoMySQLDBCore =
 	"Database<MySQL>",                                 /* name */
 	sizeof(DaoMySQLDB),                                /* size */
 	{ & daoSQLDatabaseCore, NULL },                    /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoMySQLDBMeths,                                   /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
@@ -148,6 +149,7 @@ DaoTypeCore daoMySQLHDCore =
 	"Handle<MySQL>",                                   /* name */
 	sizeof(DaoMySQLHD),                                /* size */
 	{ & daoSQLHandleCore, NULL },                      /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoMySQLHDMeths,                                   /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */

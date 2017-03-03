@@ -58,6 +58,7 @@ DaoTypeCore daoSQLDatabaseCore =
 	"Database<>",                                      /* name */
 	sizeof(DaoSQLDatabase),                            /* size */
 	{ NULL },                                          /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoSQLDatabaseMeths,                               /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
@@ -224,6 +225,7 @@ DaoTypeCore daoSQLHandleCore =
 	"Handle<>",                                        /* name */
 	sizeof(DaoSQLHandle),                              /* size */
 	{ NULL },                                          /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoSQLHandleMeths,                                 /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
@@ -1271,6 +1273,7 @@ DaoTypeCore daoDateTypeCore =
 	"DateType",                                        /* name */
 	0,                                                 /* size */
 	{ NULL },                                          /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	absDateMeths,                                      /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
@@ -1364,6 +1367,7 @@ DaoTypeCore daoConcreteDateCore =
 	"ConcreteDate",  /* name */
 	0,               /* size */
 	{ NULL },        /* bases */
+	{ NULL },        /* casts */
 	NULL,            /* numbers */
 	conDateMeths,    /* methods */
 	NULL,  NULL,     /* GetField */
@@ -1456,6 +1460,7 @@ DaoTypeCore daoTimeTypeCore =
 	"TimeType",                   /* name */
 	0,                            /* size */
 	{ & daoDateTypeCore, NULL },  /* bases */
+	{ NULL },                     /* casts */
 	NULL,                         /* numbers */
 	absTimeMeths,                 /* methods */
 	NULL,  NULL,                  /* GetField */
@@ -1507,6 +1512,7 @@ DaoTypeCore daoConcreteTimeCore =
 	"ConcreteTime",                                    /* name */
 	0,                                                 /* size */
 	{ & daoConcreteDateCore, NULL },                   /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	conTimeMeths,                                      /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */

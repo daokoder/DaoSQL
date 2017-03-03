@@ -82,6 +82,7 @@ DaoTypeCore daoSQLiteDBCore =
 	"Database<SQLite>",                                /* name */
 	sizeof(DaoSQLiteDB),                               /* size */
 	{ & daoSQLDatabaseCore, NULL },                    /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoSQLiteDBMeths,                                  /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
@@ -137,6 +138,7 @@ DaoTypeCore daoSQLiteHDCore =
 	"Handle<SQLite>",                                  /* name */
 	sizeof(DaoSQLiteHD),                               /* size */
 	{ & daoSQLHandleCore, NULL },                      /* bases */
+	{ NULL },                                          /* casts */
 	NULL,                                              /* numbers */
 	daoSQLiteHDMeths,                                  /* methods */
 	DaoCstruct_CheckGetField,  DaoCstruct_DoGetField,  /* GetField */
