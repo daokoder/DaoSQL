@@ -15,6 +15,7 @@
 #include"daoObject.h"
 #include"daoValue.h"
 #include"daoNamespace.h"
+#include"daoVmspace.h"
 
 #define DAO_HAS_TIME
 #define DAO_HAS_CRYPTO

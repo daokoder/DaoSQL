@@ -11,7 +11,7 @@ class Gene
 # connect database
 #db = SQLDatabase<PostgreSQL>( "dbname", "host", "user", "pwd" );
 #db = SQLDatabase<MySQL>( "dbname", "host", "user", "pwd" );
-db = SQL::Database<SQL::SQLite>( "Test_Gene.db" );
+var db = SQL::Database<SQL::SQLite>( "Test_Gene.db" );
 
 # create a table for class Gene
 std.exec {
@@ -19,13 +19,13 @@ std.exec {
 	db.CreateTable( Gene );
 }
 
-gene = Gene.{ 0, "RAS", "...AATCCGG..." };
-gene2 = Gene.{ 0, "RAS2", "...AATCCGCCC..." };
+var gene = Gene.{ 0, "RAS", "...AATCCGG..." };
+var gene2 = Gene.{ 0, "RAS2", "...AATCCGCCC..." };
 # insert a record into the table
 db.Insert( gene, gene2 );
 
 # SELECT * FROM Gene WHERE name = "RASE";
-h = db.Select( Gene ).Where().EQ( "name", "RAS2" );
+var h = db.Select( Gene ).Where().EQ( "name", "RAS2" );
 io.writeln( std.about(h) )
 
 io.writeln( gene.id, gene.name, gene.seq );

@@ -178,6 +178,7 @@ static void DaoSQLHandle_Match( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_GroupBy( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N );
+static void DaoSQLHandle_Range2( DaoProcess *proc, DaoValue *p[], int N );
 static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N );
 
 static DaoFunctionEntry daoSQLHandleMeths[]=
@@ -213,9 +214,10 @@ static DaoFunctionEntry daoSQLHandleMeths[]=
 	{ DaoSQLHandle_Match,   "Match( self: @Handle, table1: class, table2: class, field1=\"\", field2=\"\" )=>@Handle" },
 	{ DaoSQLHandle_GroupBy,  "GroupBy( self: @Handle, field: string )=>@Handle" },
 	{ DaoSQLHandle_GroupBy,  "GroupBy( self: @Handle, table: class, field: string )=>@Handle" },
-	{ DaoSQLHandle_Sort,  "Sort( self: @Handle, field: string, desc=0 )=>@Handle" },
-	{ DaoSQLHandle_Sort,  "Sort( self: @Handle, table: class, field: string, desc=0 )=>@Handle" },
-	{ DaoSQLHandle_Range, "Range( self: @Handle, limit :int, offset=0 )=>@Handle" },
+	{ DaoSQLHandle_Sort,  "Sort( self: @Handle, field: string, order: enum<ascent,descent> = $ascent )=>@Handle" },
+	{ DaoSQLHandle_Sort,  "Sort( self: @Handle, table: class, field: string, order: enum<ascent,descent> = $ascent )=>@Handle" },
+	{ DaoSQLHandle_Range,  "Range( self: @Handle, limit :int, offset=0 )=>@Handle" },
+	{ DaoSQLHandle_Range2, "Range( self: @Handle )=>@Handle" },
 	{ DaoSQLHandle_Stop,  "Stop( self: @Handle )" },
 	{ NULL, NULL }
 };
@@ -1094,8 +1096,8 @@ static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N )
 	int desc = 0;
 	DaoProcess_PutValue( proc, p[0] );
 	DString_AppendChars( handler->sqlSource, " ORDER BY " );
-	if( p[2]->type == DAO_INTEGER ){
-		desc = p[2]->xInteger.value;
+	if( p[2]->type == DAO_ENUM ){
+		desc = p[2]->xEnum.value;
 		DString_Append( handler->sqlSource, p[1]->xString.value );
 	}else{
 		if( p[1]->type == DAO_CLASS ){
@@ -1104,7 +1106,7 @@ static void DaoSQLHandle_Sort( DaoProcess *proc, DaoValue *p[], int N )
 			DString_AppendChars( handler->sqlSource, "." );
 		}
 		DString_Append( handler->sqlSource, p[2]->xString.value );
-		desc = p[3]->xInteger.value;
+		desc = p[3]->xEnum.value;
 	}
 	if( desc ){
 		DString_AppendChars( handler->sqlSource, " DESC " );
@@ -1125,6 +1127,34 @@ static void DaoSQLHandle_Range( DaoProcess *proc, DaoValue *p[], int N )
 		DString_Append( handler->sqlSource, handler->buffer );
 	}
 }
+
+static void DaoSQLHandle_Range2( DaoProcess *proc, DaoValue *p[], int N )
+{
+	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
+	DaoType *type = proc->vmSpace->typeInt;
+	DaoProcess_PutValue( proc, p[0] );
+
+	DString_AppendChars( handler->sqlSource, " LIMIT " );
+	handler->partypes[handler->paramCount++] = type;
+	if( handler->database->etype == DAO_POSTGRESQL ){
+		char buf[20];
+		sprintf( buf, "$%i", handler->paramCount );
+		DString_AppendChars( handler->sqlSource, buf );
+	}else{
+		DString_AppendChars( handler->sqlSource, "?" );
+	}
+
+	DString_AppendChars( handler->sqlSource, " OFFSET " );
+	handler->partypes[handler->paramCount++] = type;
+	if( handler->database->etype == DAO_POSTGRESQL ){
+		char buf[20];
+		sprintf( buf, "$%i", handler->paramCount );
+		DString_AppendChars( handler->sqlSource, buf );
+	}else{
+		DString_AppendChars( handler->sqlSource, "?" );
+	}
+}
+
 static void DaoSQLHandle_Stop( DaoProcess *proc, DaoValue *p[], int N )
 {
 	DaoSQLHandle *handler = (DaoSQLHandle*) p[0];
@@ -1534,7 +1564,7 @@ DaoTypeCore daoConcreteTimeCore =
 };
 
 
-int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
+int DaoSQL_OnLoad( DaoVmSpace *vms, DaoNamespace *ns )
 {
 	char *lang = getenv( "DAO_HELP_LANG" );
 	DaoNamespace *timens = DaoVmSpace_LinkModule( vms, ns, "time" );
@@ -1544,8 +1574,8 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 	DaoNamespace *sqlns = DaoVmSpace_GetNamespace( vms, "SQL" );
 	DaoType *absdate = DaoNamespace_WrapInterface( sqlns, & daoDateTypeCore );
 	DaoType *abstime = DaoNamespace_WrapInterface( sqlns, & daoTimeTypeCore );
-	DaoType *condate = DaoNamespace_WrapCinType( sqlns, & daoConcreteDateCore, absdate, _DaoTime_Type() );
-	DaoType *contime = DaoNamespace_WrapCinType( sqlns, & daoConcreteTimeCore, abstime, _DaoTime_Type() );
+	DaoType *condate = DaoNamespace_WrapCinType( sqlns, & daoConcreteDateCore, absdate, _DaoTime_Type(vms) );
+	DaoType *contime = DaoNamespace_WrapCinType( sqlns, & daoConcreteTimeCore, abstime, _DaoTime_Type(vms) );
 	DaoMap *engines;
 
 	DaoNamespace_AddConstValue( ns, "SQL", (DaoValue*) sqlns );
@@ -1618,7 +1648,7 @@ int DaoSQL_OnLoad( DaoVmSpace * vms, DaoNamespace *ns )
 
 	dao_sql_type_date = DaoNamespace_DefineType( sqlns, "DateType<time::DateTime>", "DATE" );
 	dao_sql_type_timestamp = DaoNamespace_DefineType( sqlns, "TimeType<time::DateTime>", "TIMESTAMP" );
-	dao_type_datetime = _DaoTime_Type();
+	dao_type_datetime = _DaoTime_Type( vms );
 
 	DaoNamespace_WrapType( sqlns, & daoSQLDatabaseCore, DAO_CSTRUCT, 0 );
 	DaoNamespace_WrapType( sqlns, & daoSQLHandleCore, DAO_CSTRUCT, 0 );
