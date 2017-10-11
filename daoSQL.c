@@ -766,7 +766,11 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 			DString_AppendChars( fname, "." );
 		}
 		DString_Append( handler->sqlSource, fname );
-		DString_AppendChars( handler->sqlSource, "+ " );
+		if( type && type->tid == DAO_STRING && handler->database->etype == DAO_SQLITE ){
+			DString_AppendChars( handler->sqlSource, " || " );
+		}else{
+			DString_AppendChars( handler->sqlSource, " + " );
+		}
 	}
 	if( N >2 ){
 		DaoValue_GetString( value, fname );

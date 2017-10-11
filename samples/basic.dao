@@ -34,3 +34,24 @@ h.Query( gene ){
 	io.writeln( gene.id, gene.name, gene.seq );
 	return $continue;
 }
+
+# TODO: Add such database method;
+routine Transaction()[]
+{
+	defer(any){
+		io.writeln( "Rolling Back!" )
+		db.RollBack()
+	}
+	db.Begin();
+	yield()
+	db.Commit();
+}
+
+Transaction {
+	var h = db.Select( Gene ).Where().EQ( "name2", "RAS2" );
+
+	io.writeln( gene.id, gene.name, gene.seq );
+	if( h.QueryOnce( gene ) ){
+		io.writeln( gene.id, gene.name, gene.seq );
+	}
+}
