@@ -766,7 +766,7 @@ static void DaoSQLHandle_SetAdd( DaoProcess *proc, DaoValue *p[], int N, int add
 			DString_AppendChars( fname, "." );
 		}
 		DString_Append( handler->sqlSource, fname );
-		if( type && type->tid == DAO_STRING && handler->database->etype == DAO_SQLITE ){
+		if( type && type->tid == DAO_STRING ){
 			DString_AppendChars( handler->sqlSource, " || " );
 		}else{
 			DString_AppendChars( handler->sqlSource, " + " );
